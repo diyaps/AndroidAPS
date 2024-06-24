@@ -39,14 +39,8 @@ class MM640gPlugin @Inject constructor(
     aapsLogger, rh, injector
 ), BgSource {
 
-  override fun advancedFilteringSupported(): Boolean = true
-
-    override fun onStart() {
-        super.onStart()
-        requestPermissionIfNeeded()
-    }   
-    
      // cannot be inner class because of needed injection
+    override fun advancedFilteringSupported(): Boolean = true
     class MM640gWorker(
         context: Context,
         params: WorkerParameters
