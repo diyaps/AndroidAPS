@@ -9,6 +9,7 @@
 [![Documentation Status](https://readthedocs.org/projects/androidaps/badge/?version=latest)](https://wiki.aaps.app/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/nightscout/AndroidAPS/branch/master/graph/badge.svg?token=EmklfIV6bH)](https://codecov.io/gh/nightscout/AndroidAPS)
 
+
 DEV: 
 [![CircleCI](https://circleci.com/gh/nightscout/AndroidAPS/tree/dev.svg?style=svg)](https://circleci.com/gh/nightscout/AndroidAPS/tree/dev)
 [![codecov](https://codecov.io/gh/nightscout/AndroidAPS/branch/dev/graph/badge.svg?token=EmklfIV6bH)](https://codecov.io/gh/nightscout/AndroidAPS/tree/dev)
@@ -23,12 +24,14 @@ DEV:
 支持原版请从上方英文链接捐助。
 支持码农哥加的功能，请点击以下链接或者扫码。
 
+
 <a href="/Documentation/donation.jpg"><img src="/Documentation/donation.jpg?raw=true" alt="Donation" width="300"></a>
 
 https://afdian.net/a/manong
 ## How to Build
 ## 如何编译
 
+  
 ### If your are familiar with Android development:
 * Fork this repository.
 * Replace `keystore/demokeystore.jks` with your own key store file.
@@ -67,6 +70,7 @@ Please follow these steps:
 * Trigger build in Github Actions
 * Download the `aaps.zip` file in `Artifacts`
 
+ 
 ### 如果你不熟悉安卓开发：
 你需要获取安卓签名文件的密码等信息，因安全原因，这些敏感信息不能公开发布于此。
 **强烈建议学习相关知识，编译完APK后，用你自己的签名文件签名。**
