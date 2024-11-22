@@ -1,0 +1,41 @@
+name: Build AndroidAPS APK
+
+on:
+  push:
+    branches:
+      - main  # 当推送到 main 分支时触发
+  pull_request:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '11' # Android Studio 使用 Java 11
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 33         # 根据项目需求设置 API Level
+        build-tools: 33.0.2   # 指定使用的 Build Tools 版本
+        ndk: 23.1.7779620     # 如果需要 NDK，可以指定版本
+
+    - name: Grant execute permission
+      run: chmod +x ./gradlew
+
+    - name: Build APK
+      run: ./gradlew assembleRelease
+
+    - name: Upload APK as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: AndroidAPS-APK
+        path: app/build/outputs/apk/release/*.apk
