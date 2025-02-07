@@ -131,10 +131,8 @@ class MyPreferenceFragment : PreferenceFragmentCompat(), OnSharedPreferenceChang
         if (pluginName != null) {
             val plugin = activePlugin.getPluginsList().firstOrNull { it.javaClass.simpleName == pluginName } ?: error("Plugin not found")
             addPreferencesIfEnabled(plugin, rootKey)
-        } else if (customPreference != null) {
-            when (customPreference!!) {
-                UiInteraction.Preferences.PROTECTION -> addProtectionScreen(rootKey)
-            }
+        } else if (customPreference == UiInteraction.Preferences.PROTECTION) {
+            addProtectionScreen(rootKey)
         } else {
             addGeneralScreen(rootKey)
             addProtectionScreen(rootKey)
@@ -154,7 +152,11 @@ class MyPreferenceFragment : PreferenceFragmentCompat(), OnSharedPreferenceChang
             addAlertScreen(rootKey)
             addPreferencesIfEnabled(maintenancePlugin, rootKey)
         }
-        initSummary(preferenceScreen, pluginName != null)
+        try {
+            initSummary(preferenceScreen, pluginName != null)
+        } catch (_: Exception) {
+            throw Exception("Error in onCreatePreferences pluginName=$pluginName customPreference=$customPreference rootKey=$rootKey filter=$filter")
+        }
         preprocessPreferences()
         if (filter != "") updateFilterVisibility(filter, preferenceScreen)
     }
