@@ -283,6 +283,7 @@ class BLEComm @Inject internal constructor(
                     synchronized(it) {
                         val value: ByteArray? = mWritePackets?.getNextPacket()
                         if (value != null) {
+                            aapsLogger.debug(LTag.PUMPBTCOMM, "ljw write bytes: " + value.joinToString(", ") { it.toString() })
                             writeCharacteristic(uartWriteBTGattChar, value)
                         }
                     }

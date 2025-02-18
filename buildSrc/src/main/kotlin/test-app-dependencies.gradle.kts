@@ -29,6 +29,7 @@ dependencies {
 tasks.withType<Test> {
     // use to display stdout in travis
     testLogging {
+        testLogging.showStandardStreams = true
         // set options for log level LIFECYCLE
         events = setOf(
             TestLogEvent.FAILED,

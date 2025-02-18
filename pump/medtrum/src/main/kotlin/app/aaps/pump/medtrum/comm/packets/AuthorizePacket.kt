@@ -33,6 +33,7 @@ class AuthorizePacket(injector: HasAndroidInjector) : MedtrumPacket(injector) {
     override fun getRequest(): ByteArray {
         val role = 2 // Fixed to 2 for pump
         val key = Crypt().keyGen(medtrumPump.pumpSN)
+        aapsLogger.debug(LTag.PUMPCOMM, "LJW Generate auth token: sn: ${medtrumPump.pumpSN}, snBytes: " + medtrumPump.pumpSN.toByteArray(4).contentToString().format("%02X") + ", key: ${key}, keyBytes: " + key.toByteArray(4).contentToString().format("%02X"))
         return byteArrayOf(opCode) + byteArrayOf(role.toByte()) + medtrumPump.patchSessionToken.toByteArray(4) + key.toByteArray(4)
     }
 

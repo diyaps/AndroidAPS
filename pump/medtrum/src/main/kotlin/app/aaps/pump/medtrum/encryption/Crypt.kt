@@ -546,10 +546,14 @@ class Crypt {
 
     fun simpleDecrypt(inputData: Long): Long {
         var temp = inputData
+        println("simpleDecrypt Initial: $temp")
         for (i in 0 until 32) {
             temp = rotatoRight(changeByTable(temp, RIJNDEAL_INVERSE_S_BOX), 32, 1).toLong()
+            println("simpleDecrypt Loop $i: $temp")
         }
-        return temp xor MED_CIPHER
+        val result = temp xor MED_CIPHER
+        println("simpleDecrypt Final: $result")
+        return result
     }
 
     private fun randomGen(input: Long): Long {
@@ -570,12 +574,17 @@ class Crypt {
 
         for (i in value.indices) {
             var byte = value[i].toInt()
+            println("changeByTable Loop: $i, byte: $byte")
             if (byte < 0) {
                 byte += 256
             }
             results[i] = tableData[byte].toByte()
+            println("changeByTable Loop: $i results: " + results.contentToString())
+
         }
-        return results.toLong()
+        val result = results.toLong()
+        println("changeByTable Final: $result")
+        return result
     }
 
     private fun rotatoLeft(x: Long, s: Int, n: Int): Long {

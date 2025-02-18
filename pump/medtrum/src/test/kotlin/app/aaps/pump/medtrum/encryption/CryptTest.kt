@@ -22,6 +22,7 @@ class CryptTest {
         val input = 2859923929
         val expected = 126009121L
         val output: Long = crypt.simpleDecrypt(input)
+        print("ljw result: $output\n")
         assertThat(output).isEqualTo(expected)
     }
 }
