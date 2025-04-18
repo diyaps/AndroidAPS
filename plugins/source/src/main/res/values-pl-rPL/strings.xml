@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Source -->
+    <string name="ns_client_bg">NSClient BG</string>
+    <string name="ns_client_bg_short">NS BG</string>
+    <string name="description_source_ns_client">Pobieraj wartości BG z Nightscout</string>
+    <string name="source_xdrip">xDrip+ BG</string>
+    <string name="description_source_xdrip">Pobieraj wartości BG z xDrip+.</string>
+    <string name="dexcom_app_patched">Dexcom Patched</string>
+    <string name="dexcom_short">DEX.PATCH.</string>
+    <string name="description_source_dexcom">Pobieraj glikemię ze spatchowanej aplikacji Dexcom.</string>
+    <string name="glimp">Glimp</string>
+    <string name="description_source_glimp">Pobieraj wartości BG z Glimp.</string>
+    <string name="mm640g">MM640g</string>
+    <string name="description_source_mm640g">Pobieraj wartości BG z uploadera pomp serii 600.</string>
+    <string name="poctech">Poctech</string>
+    <string name="description_source_poctech">Odczytuj wartości BG z aplikacji Poctech</string>
+    <string name="glunovo">Glunovo</string>
+    <string name="description_source_glunovo">Otrzymuj wartości z aplikacji Glunovo</string>
+    <string name="intelligo">Intelligo</string>
+    <string name="description_source_intelligo">Otrzymuj wartości z aplikacji Intelligo</string>
+    <string name="tomato">Tomato (MiaoMiao)</string>
+    <string name="tomato_short">Tomato</string>
+    <string name="description_source_tomato">Otrzymuj poziomy cukru (BG) z Apki Tomato) (urządzenie MiaoMiao)</string>
+    <string name="random_bg">Losowa glikemia</string>
+    <string name="description_source_random_bg">Generuj losowe odczyty glukozy (wyłącznie do celów demonstracyjnych)</string>
+    <string name="random_bg_short">BG</string>
+    <string name="direction">kierunek</string>
+    <string name="bg_generation_interval_minutes">Interwał generowania glikemii w minutach</string>
+    <!-- Patched Ottai App -->
+    <string name="ottai_app">Ottai</string>
+    <string name="description_source_patched_ottai_app">Otrzymuj dane glikemii z aplikacji Ottai.</string>
+    <!-- Patched Syai Tag App -->
+    <string name="syai_tag_app">Syai Tag</string>
+    <string name="description_source_patched_syai_tag_app">Otrzymuj dane glikemii z aplikacji Syai Tag.</string>
+</resources>

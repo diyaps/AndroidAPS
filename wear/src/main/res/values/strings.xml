@@ -2,18 +2,13 @@
 <resources>
     <string name="app_name">AAPS</string>
     <string name="label_actions_activity">AAPS</string>
-    <string name="label_watchface">AAPS</string>
-    <string name="label_watchface_large">AAPS(Large)</string>
-    <string name="label_watchface_big_chart">AAPS(BigChart)</string>
-    <string name="label_watchface_no_chart">AAPS(NoChart)</string>
     <string name="label_watchface_circle">AAPS(Circle)</string>
-    <string name="label_watchface_v2">AAPS(v2)</string>
-    <string name="label_watchface_cockpit">AAPS(Cockpit)</string>
-    <string name="label_watchface_steampunk">AAPS(Steampunk)</string>
     <string name="label_watchface_digital_style">AAPS(DigitalStyle)</string>
+    <string name="label_watchface_custom">AAPS(Custom)</string>
     <string name="label_actions_tile">AAPS(Actions)</string>
     <string name="label_temp_target_tile">AAPS(Temp Target)</string>
     <string name="label_quick_wizard_tile">AAPS(Quick Wizard)</string>
+    <string name="label_user_action_tile">AAPS(User Action)</string>
     <string name="label_warning_sync">No data!</string>
     <string name="label_warning_old">Old data!</string>
     <string name="label_warning_since">Since %1$s</string>
@@ -21,21 +16,35 @@
     <string name="msg_warning_sync">No data received since %1$s! Check if AAPS on the phone sends data to watch</string>
     <string name="msg_warning_old">AAPS data is %1$s old! Check your sensor, xDrip+, NS, AAPS config or other!</string>
     <string name="pref_vibrate_on_bolus">Vibrate on Bolus</string>
-    <string name="pref_units_for_actions">Units for Actions</string>
+    <string name="units_short">U</string>
+    <string name="pref_display_settings">Display</string>
+    <string name="pref_graph_settings">Graph</string>
+    <string name="pref_interface_settings">Interface</string>
+    <string name="pref_others_settings">Others</string>
+    <string name="pref_complication_settings">Complication</string>
     <string name="pref_show_date">Show Date</string>
     <string name="pref_show_iob">Show IOB</string>
+    <string name="pref_show_detailed_iob">Show detailed IOB</string>
     <string name="pref_show_cob">Show COB</string>
     <string name="pref_show_delta">Show Delta</string>
+    <string name="pref_show_detailed_delta">Show detailed Delta</string>
     <string name="pref_show_avgdelta">Show AvgDelta</string>
     <string name="pref_show_phone_battery">Show Phone Battery</string>
     <string name="pref_show_rig_battery">Show Rig Battery</string>
     <string name="pref_show_basal_rate">Show Basal Rate</string>
+    <string name="pref_show_temp_target">Show Temp Target</string>
+    <string name="pref_show_reservoir_level">Show Reservoir Level</string>
     <string name="pref_show_loop_status">Show Loop Status</string>
     <string name="pref_show_bg">Show BG</string>
+    <string name="pref_show_bgi">Show BGI</string>
     <string name="pref_show_direction_arrow">Show Direction Arrow</string>
     <string name="pref_show_ago">Show Ago</string>
+    <string name="pref_show_temp_basal">Show TBR</string>
+    <string name="pref_show_bolus">Show Bolus &amp; SMB</string>
+    <string name="pref_show_grid">Show Grid</string>
     <string name="pref_dark" comment="Enables dark visual theme">Dark</string>
     <string name="pref_highlight_basals">Highlight Basals</string>
+    <string name="pref_prediction_lines">Show predictions</string>
     <string name="pref_matching_divider" comment="To make divider match its background with background of whole watchface">Matching divider</string>
     <string name="pref_chart_timeframe">Chart Timeframe</string>
     <string name="pref_1_hour">1 hour</string>
@@ -43,16 +52,15 @@
     <string name="pref_3_hours">3 hours</string>
     <string name="pref_4_hours">4 hours</string>
     <string name="pref_5_hours">5 hours</string>
+    <string name="pref_1_min">disabled</string>
+    <string name="pref_5_min">5 min</string>
+    <string name="pref_10_min">10 min</string>
+    <string name="pref_15_min">15 min</string>
     <string name="pref_input_design">Input Design</string>
     <string name="pref_default">Default</string>
     <string name="pref_quick_righty">Quick righty</string>
     <string name="pref_quick_lefty">Quick lefty</string>
     <string name="pref_modern_sparse">Modern Sparse</string>
-    <string name="pref_delta_granularity">Delta Granularity (Steampunk)</string>
-    <string name="pref_low">Low</string>
-    <string name="pref_medium">Medium</string>
-    <string name="pref_high">High</string>
-    <string name="pref_auto">Auto</string>
     <string name="pref_big_numbers">Big Numbers</string>
     <string name="pref_ring_history">Ring History</string>
     <string name="pref_light_ring_history">Light Ring History</string>
@@ -82,31 +90,34 @@
     <string name="menu_default">Default</string>
     <string name="menu_menu">Menu</string>
     <string name="quick_wizard_short">XL</string>
-    <string name="action_duration">Duration</string>
+    <string name="action_duration_minutes">Duration\n[minutes]</string>
     <string name="action_tempt_confirmation">Temp Target Requested</string>
     <string name="action_quick_wizard_confirmation">Quick Wizard Requested</string>
+    <string name="action_user_action_confirmation">User Action Requested</string>
     <string name="action_treatment_confirmation">Treatment Requested</string>
     <string name="action_bolus_confirmation">Bolus Requested</string>
     <string name="action_wizard_confirmation">Calculation Requested</string>
     <string name="action_fill_confirmation">Fill Requested</string>
     <string name="action_ecarb_confirmation">Carbs Requested</string>
     <string name="action_profile_switch_confirmation">Profile Switch Requested</string>
-    <string name="action_target" comment="In temp target menu, single target value">Target</string>
-    <string name="action_low" comment="In temp target menu, lower value from range">Low</string>
-    <string name="action_high" comment="In temp target menu, higher value from range">High</string>
+    <string name="action_target_unit" comment="In temp target menu, single target value">Target\n[%s]</string>
+    <string name="action_low_unit" comment="In temp target menu, lower value from range">Low\n[%s]</string>
+    <string name="action_high_unit" comment="In temp target menu, higher value from range">High\n[%s]</string>
     <string name="action_carbs">Carbs</string>
+    <string name="action_carbs_gram">Carbs [g]</string>
     <string name="action_ecarbs">eCarbs</string>
-    <string name="action_percentage">Percentage</string>
-    <string name="action_start_min">Start [min]</string>
+    <string name="action_percentage">Percentage\n[%]</string>
+    <string name="action_start_minutes">Start\n[minutes]</string>
     <string name="action_duration_h">Duration [h]</string>
+    <string name="action_duration_hours">Duration\n[hours]</string>
     <string name="action_insulin">Insulin</string>
+    <string name="action_insulin_units">Insulin [U]</string>
     <string name="action_preset_1">Preset 1</string>
     <string name="action_preset_2">Preset 2</string>
     <string name="action_preset_3">Preset 3</string>
-    <string name="action_free_amount" comment="In prime/fill menu, allows to enter any amount to be used for priming/filling">Free amount</string>
+    <string name="action_free_amount" comment="In prime/fill menu, allows one to enter any amount to be used for priming/filling">Free amount</string>
     <string name="action_confirm">CONFIRM</string>
-    <string name="action_timeshift">timeshift</string>
-    <string name="action_bolus">Bolus</string>
+    <string name="action_timeshift_hours">Timeshift\n[hours]</string>
     <string name="bolus_progress">Bolus Progress</string>
     <string name="press_to_cancel">press to cancel</string>
     <string name="cancel_bolus">CANCEL BOLUS</string>
@@ -143,6 +154,9 @@
     <string name="pref_simplify_ui_sum">Only show time and BG</string>
     <string name="pref_vibrate_hourly">Vibrate hourly</string>
     <string name="pref_show_weeknumber">Show Week number</string>
+    <string name="pref_include_external">Include external views in template</string>
+    <string name="pref_switch_external">Switch external datas in Watchface</string>
+    <string name="custom_pref_show_seconds">Show seconds</string>
     <string name="digitalstyle_pref_your_style">Your style:</string>
     <string name="digitalstyle_style_none">no style</string>
     <string name="digitalstyle_style_minimal">minimal style</string>
@@ -168,27 +182,36 @@
     <string name="tile_no_config">No config available</string>
     <string name="wear_control_not_enabled">Wear controls disabled</string>
     <string name="wear_control_no_data">No data available</string>
+    <string name="key_preference_id" translatable="false">preference_id</string>
     <string name="key_quickwizard" translatable="false">QuickWizard</string>
-    <string name="key_wear_control" translatable="false">wearcontrol</string>
     <string name="key_units_mgdl" translatable="false">units_mgdl</string>
     <string name="key_bolus_wizard_percentage" translatable="false">boluswizard_percentage</string>
     <string name="key_treatments_safety_max_carbs" translatable="false">treatmentssafety_maxcarbs</string>
     <string name="key_treatments_safety_max_bolus" translatable="false">treatmentssafety_maxbolus</string>
     <string name="key_quick_wizard_data" translatable="false">quick_wizard_data</string>
+    <string name="key_user_action_data" translatable="false">user_action_data</string>
     <string name="key_prime_fill" translatable="false">primefill</string>
     <string name="key_show_wizard" translatable="false">showWizard</string>
     <string name="key_single_target" translatable="false">singletarget</string>
     <string name="key_wizard_percentage" translatable="false">wizardpercentage</string>
+    <string name="key_show_graph_basal" translatable="false">show_graph_basal</string>
+    <string name="key_show_graph_temp_basal" translatable="false">show_graph_temp_basal</string>
+    <string name="key_show_graph_carbs" translatable="false">show_graph_carbs</string>
+    <string name="key_show_graph_bolus" translatable="false">show_graph_bolus</string>
+    <string name="key_show_graph_grid" translatable="false">show_graph_grid</string>
     <string name="key_highlight_basals" translatable="false">highlight_basals</string>
+    <string name="key_prediction_lines" translatable="false">prediction_lines</string>
     <string name="key_chart_time_frame" translatable="false">chart_time_frame</string>
     <string name="key_show_week_number" translatable="false">show_week_number</string>
     <string name="key_show_date" translatable="false">show_date</string>
     <string name="key_show_cob" translatable="false">show_cob</string>
     <string name="key_show_bg" translatable="false">showBG</string>
+    <string name="key_show_bgi" translatable="false">showBGI</string>
     <string name="key_show_external_status" translatable="false">showExternalStatus</string>
     <string name="key_show_ago" translatable="false">showAgo</string>
     <string name="key_show_big_numbers" translatable="false">showBigNumbers</string>
     <string name="key_show_delta" translatable="false">showDelta</string>
+    <string name="key_show_detailed_delta" translatable="false">showDetailedDelta</string>
     <string name="key_show_avg_delta" translatable="false">showAvgDelta</string>
     <string name="key_show_ring_history" translatable="false">showRingHistory</string>
     <string name="key_digital_style_frame_style" translatable="false">digital_style_frame_style</string>
@@ -197,36 +220,73 @@
     <string name="key_digital_style_frame_color_opacity" translatable="false">digital_style_frame_color_opacity</string>
     <string name="key_show_direction" translatable="false">show_direction</string>
     <string name="key_show_iob" translatable="false">show_iob</string>
+    <string name="key_show_detailed_iob" translatable="false">show_detailed_iob</string>
     <string name="key_show_uploader_battery" translatable="false">show_uploader_battery</string>
     <string name="key_show_rig_battery" translatable="false">show_rig_battery</string>
     <string name="key_show_temp_basal" translatable="false">show_temp_basal</string>
+    <string name="key_show_temp_target" translatable="false">show_temp_target</string>
+    <string name="key_show_reservoir_level" translatable="false">show_reservoir_level</string>
     <string name="key_vibrate_hourly" translatable="false">vibrate_hourly</string>
     <string name="key_match_divider" translatable="false">match_divider</string>
     <string name="key_simplify_ui" translatable="false">simplify_ui</string>
     <string name="key_dark" translatable="false">dark</string>
     <string name="key_input_design" translatable="false">input_design</string>
     <string name="key_complication_tap_action" translatable="false">complication_tap_action</string>
-    <string name="key_insulin_button_increment_1" translatable="false">insulin_button_increment_1</string>
-    <string name="key_insulin_button_increment_2" translatable="false">insulin_button_increment_2</string>
-    <string name="key_carbs_button_increment_1" translatable="false">carbs_button_increment_1</string>
-    <string name="key_carbs_button_increment_2" translatable="false">carbs_button_increment_2</string>
+    <string name="key_show_seconds" translatable="false">show_second</string>
+    <string name="key_include_external" translatable="false">include_external</string>
+    <string name="key_switch_external" translatable="false">switch_external</string>
+    <string name="key_last_selected_watchface" translatable="false">last_selected_watchface</string>
     <string name="increment">increment</string>
     <string name="decrement">decrement</string>
-    <string name="first_char_high">H</string>
-    <string name="first_char_low">L</string>
     <string name="abbreviation_average">avg</string>
     <string name="no_iob_u">--U</string>
     <string name="no_cob_g">--g</string>
     <string name="no_tmp_basal_u_h">-.--U/h</string>
-    <string name="uploader_na">Uploader: ---%</string>
-    <string name="no_status">S: no status</string>
-    <string name="time_stamp_na_min_ago">-- Minutes ago</string>
-    <string name="delta_na">--- mg/dl</string>
-    <string name="no_loop_status">No Loop Status</string>
     <string name="cob_000g">000g</string>
     <string name="svg_00_0" comment="use , or . only">00,0</string>
     <string name="iob_0_00u">0,00U</string>
     <string name="snooze_alert">AAPS Snooze Alert</string>
     <string name="sending_snooze">Sending Snooze to AAPS</string>
-
+    <string name="week_short">w</string>
+    <string name="day_short">d</string>
+    <string name="hour_short">h</string>
+    <string name="hour_minute">%1$s:%2$s</string>
+    <string name="hour_minute_second">%1$s:%2$s:%3$s</string>
+    <string name="old">old</string>
+    <string name="old_warning">!old!</string>
+    <string name="error">!err!</string>
+    <string name="key_heart_rate_sampling" translatable="false">heart_rate_sampling</string>
+    <string name="pref_heartRateSampling">Heart Rate</string>
+    <string name="key_heart_rate_smoothing" translatable="false">heart_rate_smoothing</string>
+    <string name="pref_heartRateSmoothing">HR Smoothing</string>
+    <string name="key_steps_sampling" translatable="false">key_steps_sampling</string>
+    <string name="pref_stepsSampling">Enable Steps Count</string>
+    <string name="tile_tempt_1">Temp Target 1</string>
+    <string name="tile_tempt_2">Temp Target 2</string>
+    <string name="tile_tempt_3">Temp Target 3</string>
+    <string name="tile_tempt_4">Temp Target 4</string>
+    <string name="tile_action_1">Action 1</string>
+    <string name="tile_action_2">Action 2</string>
+    <string name="tile_action_3">Action 3</string>
+    <string name="tile_action_4">Action 4</string>
+    <string name="datalayer_notification_title">Data Layer Foreground Service</string>
+    <string name="datalayer_notification_text">AAPS is running in the foreground. To hide notification go to Developer options, App notifications, Allowed watch apps, select AAPS, Turn off Data Layer Foreground Service Channel notification.</string>
+    <string name="on">ON</string>
+    <string name="off">OFF</string>
+    <string name="complication_full_status">Full Status</string>
+    <string name="complication_full_status_flipped">Full Status (flipped)</string>
+    <string name="complication_blood_glucose">Blood Glucose</string>
+    <string name="complication_br_cob_iob">BR, CoB &amp; IoB</string>
+    <string name="complication_br_iob">BR &amp; IoB</string>
+    <string name="complication_br">Basal rate</string>"
+    <string name="complication_cob_iob">CoB &amp; IoB</string>
+    <string name="complication_cob_icon">CoB Icon</string>
+    <string name="complication_cob_detailed">CoB Detailed</string>
+    <string name="complication_iob_icon">IoB Icon</string>
+    <string name="complication_iob_detailed">IoB Detailed</string>
+    <string name="complication_uploader_phone_battery">Uploader/Phone Battery</string>
+    <string name="status_loop_state">Loop state</string>
+    <string name="key_loop_states_data" translatable="false">loop_states</string>
+    <string name="label_loop_state_title">AAPS(Loop state)</string>
+    <string name="action_loop_state_selected">Loop state requested</string>
 </resources>

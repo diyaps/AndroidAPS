@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--    <string name="fi_lang" translatable="false">Finnish</string> -->
-    <!--   <string name="he_lang" translatable="false">Hebrew</string> -->
-    <!--    <string name="ja_lang" translatable="false">Japanese</string> -->
-    <!-- SMS Communicator & OTP Authenticator -->
-    <!-- Theme switcher dark and light mode-->
+    <string name="nav_preferences_plugin">%1$s Postavke</string>
+    <string name="nav_exit">Izlaz</string>
+    <string name="delta">Delta</string>
+    <string name="save">Spremi</string>
+    <string name="invalid">GREŠKA</string>
+    <string name="unitsnosemicolon">Jedinice</string>
     <!-- WEAR OS-->
-    <!-- Aidex Cgms -->
+    <string name="search">Pretraga</string>
 </resources>

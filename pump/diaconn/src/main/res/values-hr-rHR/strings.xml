@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diaconn_g8_history_bolus">Bolusi</string>
+    <string name="diaconn_g8_pumpalarm_intensity_low">nisko</string>
+    <string name="diaconn_g8_pumpalarm_intensity_high">visoko</string>
+    <string name="diaconn_g8_reasonother">Ostalo</string>
+    <string name="diaconn_g8_logsuccess">Uspješno</string>
+</resources>
