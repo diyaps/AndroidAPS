@@ -325,6 +325,7 @@
     <string name="overview_show_steps">Steps</string>
     <string name="steps_shortname">STEPS</string>
     <string name="simple_mode_enabled">Simple mode enabled</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="note_title">记事本</string>
     <string name="note_short">记事本</string>
     <string name="note_description">记事本功能，用于记录重要信息</string>
