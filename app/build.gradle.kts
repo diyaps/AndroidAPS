@@ -191,7 +191,7 @@ android {
 
     }
 
-    useLibrary("org.apache.http.legacy")
+    // useLibrary("org.apache.http.legacy")
 
     //Deleting it causes a binding error
     buildFeatures {
