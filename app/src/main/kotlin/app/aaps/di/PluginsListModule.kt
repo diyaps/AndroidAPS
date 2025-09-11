@@ -27,6 +27,7 @@ import app.aaps.plugins.main.general.persistentNotification.PersistentNotificati
 import app.aaps.plugins.main.general.smsCommunicator.SmsCommunicatorPlugin
 import app.aaps.plugins.main.general.themes.ThemeSwitcherPlugin
 import app.aaps.plugins.main.iob.iobCobCalculator.IobCobCalculatorPlugin
+import app.aaps.plugins.main.profile.NotePlugin
 import app.aaps.plugins.main.profile.ProfilePlugin
 import app.aaps.plugins.sensitivity.SensitivityAAPSPlugin
 import app.aaps.plugins.sensitivity.SensitivityOref1Plugin
@@ -501,4 +502,11 @@ abstract class PluginsListModule {
 
     @Qualifier
     annotation class Unfinished
+
+    @Binds
+    @AllConfigs
+    @IntoMap
+    @IntKey(6) // 使用一个未使用的key值
+    abstract fun bindNotePlugin(plugin: NotePlugin): PluginBase
+
 }
