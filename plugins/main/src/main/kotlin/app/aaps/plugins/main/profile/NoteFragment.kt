@@ -1,5 +1,6 @@
 package app.aaps.plugins.main.profile
 
+import android.annotation.SuppressLint
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
@@ -24,6 +25,7 @@ import app.aaps.plugins.main.databinding.FragmentNoteBinding
 class NoteFragment : Fragment() {
     private var binding: FragmentNoteBinding? = null
 
+    @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled")
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -61,6 +63,7 @@ class NoteFragment : Fragment() {
         // 配置WebViewClient处理页面加载和错误
         myWebView.webViewClient = object : WebViewClient() {
             // 处理SSL证书错误（调试环境使用，生产环境建议移除）
+            @SuppressLint("WebViewClientOnReceivedSslError")
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
                 handler?.proceed() // 临时接受所有证书，生产环境需验证证书有效性
             }
