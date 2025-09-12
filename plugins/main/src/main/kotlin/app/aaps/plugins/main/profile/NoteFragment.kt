@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
+import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -24,8 +25,22 @@ import app.aaps.plugins.main.databinding.FragmentNoteBinding
 
 class NoteFragment : Fragment() {
     private var binding: FragmentNoteBinding? = null
+    // 添加页面状态接口类
+    inner class PageStateInterface {
+        @JavascriptInterface
+        fun isPageVisible(): Boolean {
+            return isVisible
+        }
 
-    @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled")
+        @JavascriptInterface
+        fun keepAppAlive() {
+            // 保持应用活跃状态
+            activity?.runOnUiThread {
+                binding?.webview?.requestFocus()
+            }
+        }
+    }
+    @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -44,6 +59,21 @@ class NoteFragment : Fragment() {
         settings.displayZoomControls = false // 隐藏缩放按钮
         settings.cacheMode = WebSettings.LOAD_DEFAULT // 设置缓存模式
 
+        // 添加音频播放相关设置
+        settings.mediaPlaybackRequiresUserGesture = false // 允许自动播放音频
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE // 允许混合内容
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            settings.mediaPlaybackRequiresUserGesture = false
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        }
+
+        // 启用Web Workers支持
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            settings.allowUniversalAccessFromFileURLs = true // 允许从文件URL访问通用资源
+        }
+
         // 关键修复：处理WebView的触摸事件，阻止滑动事件传递到ViewPager2
         myWebView.setOnTouchListener { v, event ->
             when (event.action) {
@@ -59,6 +89,9 @@ class NoteFragment : Fragment() {
             // 让WebView处理自己的触摸事件
             false
         }
+
+        // 添加页面状态JavaScript接口
+        myWebView.addJavascriptInterface(PageStateInterface(), "AndroidPageState")
 
         // 配置WebViewClient处理页面加载和错误
         myWebView.webViewClient = object : WebViewClient() {
@@ -101,8 +134,35 @@ class NoteFragment : Fragment() {
 
         // 加载目标URL
         // myWebView.loadUrl("https://dft-idmstest.omodaglobal.com")
-        myWebView.loadUrl("http://121.41.11.76:8080")
+        // myWebView.loadUrl("http://121.41.11.76:8080")
+        myWebView.loadUrl("http://192.168.124.8:8081")
 
         return binding?.root
+    }
+
+    // 添加生命周期管理
+    override fun onResume() {
+        super.onResume()
+        binding?.webview?.onResume()
+        binding?.webview?.requestFocus()
+        // 通知JavaScript页面已恢复
+        binding?.webview?.evaluateJavascript(
+            "javascript:if(window.onPageResume) window.onPageResume();", null
+        )
+    }
+
+    override fun onPause() {
+        super.onPause()
+        binding?.webview?.onPause()
+        // 通知JavaScript页面即将暂停
+        binding?.webview?.evaluateJavascript(
+            "javascript:if(window.onPagePause) window.onPagePause();", null
+        )
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding?.webview?.destroy()
+        binding = null
     }
 }

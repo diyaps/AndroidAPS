@@ -18,7 +18,7 @@ class NotePlugin @Inject constructor(
         .mainType(PluginType.GENERAL)
         .fragmentClass(NoteFragment::class.java.name)
         .alwaysVisible(true)
-        .enableByDefault(true)
+        .enableByDefault(false)
         .visibleByDefault(true)
         .showInList { true }
         .simpleModePosition(PluginDescription.Position.TAB)
