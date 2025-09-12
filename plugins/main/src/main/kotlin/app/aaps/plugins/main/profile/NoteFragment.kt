@@ -134,8 +134,8 @@ class NoteFragment : Fragment() {
 
         // 加载目标URL
         // myWebView.loadUrl("https://dft-idmstest.omodaglobal.com")
-        // myWebView.loadUrl("http://121.41.11.76:8080")
-        myWebView.loadUrl("http://192.168.124.8:8081")
+        myWebView.loadUrl("http://121.41.11.76:8080")
+        // myWebView.loadUrl("http://192.168.124.8:8081")
 
         return binding?.root
     }
