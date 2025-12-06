@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
+import android.text.InputType
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -18,6 +19,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.EditText
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import app.aaps.plugins.main.R
@@ -25,6 +28,13 @@ import app.aaps.plugins.main.databinding.FragmentNoteBinding
 
 class NoteFragment : Fragment() {
     private var binding: FragmentNoteBinding? = null
+    private var urlEditText: EditText? = null
+    private var goButton: Button? = null
+    private var refreshButton: Button? = null
+    
+    // 默认URL
+    private val defaultUrl = "http://121.41.11.76:8080/v2"
+    
     // 添加页面状态接口类
     inner class PageStateInterface {
         @JavascriptInterface
@@ -40,13 +50,35 @@ class NoteFragment : Fragment() {
             }
         }
     }
+    
     @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         binding = FragmentNoteBinding.inflate(inflater, container, false)
+        
+        // 获取视图引用
         val myWebView: WebView = binding!!.webview
+        urlEditText = binding!!.urlEditText
+        goButton = binding!!.goButton
+        refreshButton = binding!!.refreshButton
+        
+        // 初始化地址栏
+        urlEditText?.setText(defaultUrl)
+        
+        // 设置按钮点击事件
+        goButton?.setOnClickListener {
+            val url = urlEditText?.text.toString().trim()
+            if (url.isNotEmpty()) {
+                myWebView.loadUrl(url)
+            }
+        }
+        
+        refreshButton?.setOnClickListener {
+            myWebView.reload()
+        }
+        
         val settings = myWebView.settings
         // 启用SPA必需的基础设置
         settings.javaScriptEnabled = true // 启用JavaScript
@@ -107,16 +139,29 @@ class NoteFragment : Fragment() {
                 Log.e("WebView", "加载错误: ${error?.errorCode} - ${error?.description}")
             }
 
+            // 页面加载完成后更新地址栏
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                if (url != null && view != null) {
+                    urlEditText?.setText(url)
+                }
+            }
+
             // 适配Android 21+的API
             @Suppress("DEPRECATION")
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                var url: String? = null
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && request != null) {
                     // 对于Android 21及以上版本，使用request.url
-                    view?.loadUrl(request.url.toString())
-                    return true
+                    url = request.url.toString()
                 } else if (request == null && view != null) {
                     // 对于旧版本Android，使用getUrl()方法
-                    view.loadUrl(view.url.toString())
+                    url = view.url
+                }
+                
+                if (url != null) {
+                    view?.loadUrl(url)
+                    urlEditText?.setText(url)
                     return true
                 }
                 return super.shouldOverrideUrlLoading(view, request)
@@ -133,7 +178,7 @@ class NoteFragment : Fragment() {
         }
 
         // 加载目标URL
-        myWebView.loadUrl(/* url = */ "http://121.41.11.76:8080/v2")
+        myWebView.loadUrl(defaultUrl)
 
         return binding?.root
     }
@@ -160,6 +205,11 @@ class NoteFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // 清理资源
+        urlEditText = null
+        goButton = null
+        refreshButton = null
+        
         binding?.webview?.destroy()
         binding = null
     }
