@@ -201,14 +201,22 @@ class SWDefinition @Inject constructor(
                      .visibility { androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) }
                      .action { androidPermission.askForPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) })
             .add(SWBreak(injector))
-            .add(SWInfoText(injector).label(rh.gs(R.string.need_background_location_permission)))
+            .add(SWInfoText(injector)
+                     .label(rh.gs(R.string.need_background_location_permission))
+                     .visibility { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q })
             .add(SWBreak(injector))
             .add(SWButton(injector)
                      .text(R.string.askforpermission)
-                     .visibility { androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
+                     .visibility { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q && androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
                      .action { androidPermission.askForPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) })
-            .visibility { androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) || androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
-            .validator { !androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) && !androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
+            .visibility { 
+                androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) || 
+                (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q && androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) 
+            }
+            .validator { 
+                !androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) && 
+                !(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q && androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) 
+            }
 
     private val screenImport
         get() = SWScreen(injector, R.string.import_setting)

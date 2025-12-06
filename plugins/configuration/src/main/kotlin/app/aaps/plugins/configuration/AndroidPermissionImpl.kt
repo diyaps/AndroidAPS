@@ -165,7 +165,7 @@ class AndroidPermissionImpl @Inject constructor(
                 action = { askForPermission(activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) },
                 validityCheck = { permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) || permissionNotGranted(activity, Manifest.permission.ACCESS_COARSE_LOCATION) }
             )
-        } else if (permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && permissionNotGranted(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
             uiInteraction.addNotification(
                 id = Notification.PERMISSION_LOCATION,
                 text = rh.gs(R.string.need_background_location_permission),

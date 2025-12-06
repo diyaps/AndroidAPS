@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import android.os.Binder
 import android.os.IBinder
 import androidx.core.app.ActivityCompat
@@ -101,7 +102,43 @@ class LocationService : DaggerService() {
         }
 
         // Get last location once until we get regular update
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // For Android 10+ check background location permission
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                LocationServices.getFusedLocationProviderClient(this).lastLocation.addOnSuccessListener {
+                    lastLocationDataContainer.lastLocation = it
+                    initializeLocationManager()
+
+                    try {
+                        if (preferences.get(StringKey.AutomationLocation) == "NETWORK") locationManager?.requestLocationUpdates(
+                            LocationManager.NETWORK_PROVIDER,
+                            LOCATION_INTERVAL_ACTIVE,
+                            LOCATION_DISTANCE,
+                            LocationListener(LocationManager.NETWORK_PROVIDER).also { locationListener = it }
+                        )
+                        if (preferences.get(StringKey.AutomationLocation) == "GPS") locationManager?.requestLocationUpdates(
+                            LocationManager.GPS_PROVIDER,
+                            LOCATION_INTERVAL_ACTIVE,
+                            LOCATION_DISTANCE,
+                            LocationListener(LocationManager.GPS_PROVIDER).also { locationListener = it }
+                        )
+                        if (preferences.get(StringKey.AutomationLocation) == "PASSIVE") locationManager?.requestLocationUpdates(
+                            LocationManager.PASSIVE_PROVIDER,
+                            LOCATION_INTERVAL_PASSIVE,
+                            LOCATION_DISTANCE,
+                            LocationListener(LocationManager.PASSIVE_PROVIDER).also { locationListener = it }
+                        )
+                    } catch (ex: SecurityException) {
+                        aapsLogger.error(LTag.LOCATION, "fail to request location update, ignore", ex)
+                    } catch (ex: IllegalArgumentException) {
+                        aapsLogger.error(LTag.LOCATION, "network provider does not exist", ex)
+                    }
+                }
+            } else {
+                ToastUtils.errorToast(this, getString(app.aaps.core.ui.R.string.location_permission_not_granted))
+            }
+        } else {
+            // For Android 9 and below, just use foreground location permissions
             LocationServices.getFusedLocationProviderClient(this).lastLocation.addOnSuccessListener {
                 lastLocationDataContainer.lastLocation = it
                 initializeLocationManager()
@@ -131,8 +168,6 @@ class LocationService : DaggerService() {
                     aapsLogger.error(LTag.LOCATION, "network provider does not exist", ex)
                 }
             }
-        } else {
-            ToastUtils.errorToast(this, getString(app.aaps.core.ui.R.string.location_permission_not_granted))
         }
 
         disposable += rxBus
@@ -147,8 +182,10 @@ class LocationService : DaggerService() {
     override fun onDestroy() {
         super.onDestroy()
         try {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    return
+                }
             }
             locationListener?.let { locationManager?.removeUpdates(it) }
         } catch (ex: Exception) {
