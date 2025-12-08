@@ -5,5 +5,7 @@ import android.widget.EditText
 class HttpsUrlValidator(customErrorMessage: String?) : WebUrlValidator(customErrorMessage) {
 
     override fun isValid(editText: EditText): Boolean =
-        super.isValid(editText) && editText.text.startsWith("https://", ignoreCase = true)
+        super.isValid(editText) && 
+        (editText.text.startsWith("https://", ignoreCase = true) || 
+         editText.text.startsWith("http://", ignoreCase = true))
 }
