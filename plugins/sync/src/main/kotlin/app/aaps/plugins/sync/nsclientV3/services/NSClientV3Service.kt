@@ -116,8 +116,15 @@ class NSClientV3Service : DaggerService() {
     @Suppress("SameParameterValue")
     private fun initializeWebSockets(reason: String) {
         if (preferences.get(StringKey.NsClientUrl).isEmpty()) return
-        val urlStorage = preferences.get(StringKey.NsClientUrl).lowercase().replace(Regex("/$"), "") + "/storage"
-        val urlAlarm = preferences.get(StringKey.NsClientUrl).lowercase().replace(Regex("/$"), "") + "/alarm"
+        val baseUrl = preferences.get(StringKey.NsClientUrl).lowercase().replace(Regex("/$"), "")
+        // 根据HTTP/HTTPS协议自动转换为WS/WSS协议
+        val wsBaseUrl = when {
+            baseUrl.startsWith("https://") -> baseUrl.replace("https://", "wss://")
+            baseUrl.startsWith("http://") -> baseUrl.replace("http://", "ws://")
+            else -> "wss://$baseUrl" // 默认使用wss
+        }
+        val urlStorage = wsBaseUrl + "/storage"
+        val urlAlarm = wsBaseUrl + "/alarm"
         if (!nsClientV3Plugin.isAllowed) {
             rxBus.send(EventNSClientNewLog("● WS", nsClientV3Plugin.blockingReason))
         } else if (sp.getBoolean(R.string.key_ns_paused, false)) {

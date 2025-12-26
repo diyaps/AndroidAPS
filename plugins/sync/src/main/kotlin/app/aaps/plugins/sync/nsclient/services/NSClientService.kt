@@ -261,9 +261,14 @@ class NSClientService : DaggerService() {
         } else if (!nsEnabled) {
             rxBus.send(EventNSClientNewLog("● NSCLIENT", "disabled"))
             rxBus.send(EventNSClientStatus("Disabled"))
-        } else if (nsURL != "" && (nsURL.lowercase(Locale.getDefault()).startsWith("https://"))) {
+        } else if (nsURL != "" && (nsURL.lowercase(Locale.getDefault()).startsWith("https://") || nsURL.lowercase(Locale.getDefault()).startsWith("http://"))) {
             try {
+                // 显示连接状态
                 rxBus.send(EventNSClientStatus("Connecting ..."))
+                // 如果是http连接，显示加密警告但仍然允许连接
+                if (nsURL.lowercase(Locale.getDefault()).startsWith("http://")) {
+                    rxBus.send(EventNSClientNewLog("● NSCLIENT", "NS URL not encrypted"))
+                }
                 val opt = IO.Options().also { it.forceNew = true }
                 socket = IO.socket(nsURL, opt).also { socket ->
                     socket.on(Socket.EVENT_CONNECT, onConnect)
@@ -283,9 +288,6 @@ class NSClientService : DaggerService() {
                 rxBus.send(EventNSClientNewLog("● NSCLIENT", "Wrong URL syntax"))
                 rxBus.send(EventNSClientStatus("Wrong URL syntax"))
             }
-        } else if (nsURL.lowercase(Locale.getDefault()).startsWith("http://")) {
-            rxBus.send(EventNSClientNewLog("● NSCLIENT", "NS URL not encrypted"))
-            rxBus.send(EventNSClientStatus("Not encrypted"))
         } else {
             rxBus.send(EventNSClientNewLog("● NSCLIENT", "No NS URL specified"))
             rxBus.send(EventNSClientStatus("Not configured"))

@@ -49,7 +49,7 @@ interface ConfigBuilder {
         pluginViewHolders: ArrayList<PluginViewHolderInterface>,
         activity: FragmentActivity,
         parent: LinearLayout,
-        showExpanded: Boolean = false
+        showExpanded: Boolean = true
     )
 
     fun interface PluginViewHolderInterface {

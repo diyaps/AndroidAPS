@@ -49,7 +49,7 @@
     <string name="ns_client_title">NSClientV1</string>
     <string name="ns_client_v3_title">NSClientV3</string>
     <string name="ns_client_url_title">Nightscout URL</string>
-    <string name="ns_client_url_dialog_message">Enter your Nightscout URL (i.e. https://yoursitename.yourplatform.dom)</string>
+    <string name="ns_client_url_dialog_message">Enter your Nightscout URL (i.e. http://yoursitename.yourplatform.dom or http://ip:port)</string>
     <string name="ns_client_secret_title">Nightscout API secret</string>
     <string name="ns_client_secret_dialog_message">Enter your Nightscout API secret (minimum 12 chars password recorded in your Nightscout variables)</string>
     <string name="nsclient_token_title">Nightscout access token</string>

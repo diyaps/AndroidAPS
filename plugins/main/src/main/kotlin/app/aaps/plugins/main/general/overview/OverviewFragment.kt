@@ -1,5 +1,5 @@
 package app.aaps.plugins.main.general.overview
-
+import android.os.Build
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.ActivityNotFoundException
@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Point
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.AnimationDrawable
@@ -190,9 +191,23 @@ class OverviewFragment : DaggerFragment(), View.OnClickListener, OnLongClickList
 
         // pre-process landscape mode
         //check screen width
-        val wm = requireActivity().windowManager.currentWindowMetrics
-        val screenWidth = wm.bounds.width()
-        val screenHeight = wm.bounds.height()
+        val screenWidth: Int
+        val screenHeight: Int
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11 (API 30+) 使用currentWindowMetrics
+            val wm = requireActivity().windowManager.currentWindowMetrics
+            screenWidth = wm.bounds.width()
+            screenHeight = wm.bounds.height()
+        } else {
+            // Android 10及以下使用defaultDisplay
+            val wm = requireActivity().windowManager
+            val display = wm.defaultDisplay
+            val size = Point()
+            display.getSize(size)
+            screenWidth = size.x
+            screenHeight = size.y
+        }
         smallWidth = screenWidth <= Constants.SMALL_WIDTH
         smallHeight = screenHeight <= Constants.SMALL_HEIGHT
         val landscape = screenHeight < screenWidth
@@ -672,7 +687,10 @@ class OverviewFragment : DaggerFragment(), View.OnClickListener, OnLongClickList
         val closedLoopEnabled = constraintChecker.isClosedLoopAllowed()
 
         fun apsModeSetA11yLabel(stringRes: Int) {
-            binding.infoLayout.apsMode.stateDescription = rh.gs(stringRes)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                binding.infoLayout.apsMode.stateDescription = rh.gs(stringRes)
+            }
+            // binding.infoLayout.apsMode.stateDescription = rh.gs(stringRes)
         }
 
         runOnUiThread {

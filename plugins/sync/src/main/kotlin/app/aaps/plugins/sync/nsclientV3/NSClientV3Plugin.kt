@@ -349,14 +349,16 @@ class NSClientV3Plugin @Inject constructor(
     }
 
     private fun setClient() {
-        if (nsAndroidClient == null)
+        if (nsAndroidClient == null) {
+            val nsUrl = preferences.get(StringKey.NsClientUrl).lowercase().replace(Regex("/$"), "")
             nsAndroidClient = NSAndroidClientImpl(
-                baseUrl = preferences.get(StringKey.NsClientUrl).lowercase().replace("https://", "").replace(Regex("/$"), ""),
+                baseUrl = nsUrl,
                 accessToken = preferences.get(StringKey.NsClientAccessToken),
                 context = context,
                 logging = l.findByName(LTag.NSCLIENT.tag).enabled && (config.isEngineeringMode() || config.isDev()),
                 logger = { msg -> aapsLogger.debug(LTag.HTTP, msg) }
             )
+        }
         SystemClock.sleep(2000)
         startService()
         rxBus.send(EventSWSyncStatus(status))

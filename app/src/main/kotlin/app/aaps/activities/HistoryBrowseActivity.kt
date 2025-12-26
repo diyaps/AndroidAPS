@@ -42,6 +42,8 @@ import java.util.Calendar
 import java.util.GregorianCalendar
 import javax.inject.Inject
 import kotlin.math.min
+import android.graphics.Point
+import android.os.Build
 
 class HistoryBrowseActivity : TranslatedDaggerAppCompatActivity() {
 
@@ -128,7 +130,33 @@ class HistoryBrowseActivity : TranslatedDaggerAppCompatActivity() {
                 .show(supportFragmentManager, "history_date_picker")
         }
 
-        windowManager.currentWindowMetrics
+        // windowManager.currentWindowMetrics
+        // 如果需要屏幕尺寸，使用兼容性代码
+        val screenWidth: Int
+        val screenHeight: Int
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11 (API 30+) 使用currentWindowMetrics
+            val wm = windowManager.currentWindowMetrics
+            screenWidth = wm.bounds.width()
+            screenHeight = wm.bounds.height()
+        } else {
+            // Android 10及以下使用defaultDisplay
+            val display = windowManager.defaultDisplay
+            val size = Point()
+            display.getSize(size)
+            screenWidth = size.x
+            screenHeight = size.y
+        }
+
+        axisWidth = when {
+            resources.displayMetrics.densityDpi <= 120 -> 3
+            resources.displayMetrics.densityDpi <= 160 -> 10
+            resources.displayMetrics.densityDpi <= 320 -> 35
+            resources.displayMetrics.densityDpi <= 420 -> 50
+            resources.displayMetrics.densityDpi <= 560 -> 70
+            else                                       -> 80
+        }
 
         axisWidth = when {
             resources.displayMetrics.densityDpi <= 120 -> 3

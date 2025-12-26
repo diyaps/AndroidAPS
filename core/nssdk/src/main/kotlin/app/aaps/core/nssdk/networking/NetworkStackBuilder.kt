@@ -35,9 +35,17 @@ internal object NetworkStackBuilder {
         refreshToken: String,
         logging: Boolean,
         logger: HttpLoggingInterceptor.Logger
-    ): Retrofit =
-        Retrofit.Builder()
-            .baseUrl("https://$baseUrl/api/")
+    ): Retrofit {
+        // 检查baseUrl是否已经包含协议前缀
+        val fullBaseUrl = if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+            "$baseUrl/api/"
+        } else {
+            // 如果没有协议前缀，默认使用https
+            "https://$baseUrl/api/"
+        }
+        
+        return Retrofit.Builder()
+            .baseUrl(fullBaseUrl)
             .client(
                 getOkHttpClient(
                     context = context,
@@ -49,18 +57,28 @@ internal object NetworkStackBuilder {
             )
             .addConverterFactory(GsonConverterFactory.create(provideGson()))
             .build()
+    }
 
     private fun getAuthRefreshRetrofit(
         baseUrl: String,
         context: Context,
         logging: Boolean,
         logger: HttpLoggingInterceptor.Logger
-    ): Retrofit =
-        Retrofit.Builder()
-            .baseUrl("https://$baseUrl/api/")
+    ): Retrofit {
+        // 检查baseUrl是否已经包含协议前缀
+        val fullBaseUrl = if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+            "$baseUrl/api/"
+        } else {
+            // 如果没有协议前缀，默认使用https
+            "https://$baseUrl/api/"
+        }
+        
+        return Retrofit.Builder()
+            .baseUrl(fullBaseUrl)
             .client(getAuthRefreshOkHttpClient(context = context, logging = logging, logger = logger))
             .addConverterFactory(GsonConverterFactory.create(provideGson()))
             .build()
+    }
 
     private fun getOkHttpClient(
         context: Context,
