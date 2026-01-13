@@ -97,8 +97,8 @@ class NSClientV3Service : DaggerService() {
     private fun shutdownWebsockets() {
         storageSocket?.on(Socket.EVENT_CONNECT, onConnectStorage)
         storageSocket?.on(Socket.EVENT_DISCONNECT, onDisconnectStorage)
-        storageSocket?.on("create", onDataCreateUpdate)
-        storageSocket?.on("update", onDataCreateUpdate)
+        storageSocket?.on("create", onDataCreate)
+        storageSocket?.on("update", onDataUpdate)
         storageSocket?.on("delete", onDataDelete)
         storageSocket?.disconnect()
         alarmSocket?.on(Socket.EVENT_CONNECT, onConnectAlarms)
@@ -137,8 +137,8 @@ class NSClientV3Service : DaggerService() {
                     socket.on(Socket.EVENT_DISCONNECT, onDisconnectStorage)
                     rxBus.send(EventNSClientNewLog("► WS", "do connect storage $reason"))
                     socket.connect()
-                    socket.on("create", onDataCreateUpdate)
-                    socket.on("update", onDataCreateUpdate)
+                    socket.on("create", onDataCreate)
+                    socket.on("update", onDataUpdate)
                     socket.on("delete", onDataDelete)
                 }
                 if (preferences.get(BooleanKey.NsClientNotificationsFromAnnouncements) ||
@@ -219,13 +219,22 @@ class NSClientV3Service : DaggerService() {
         rxBus.send(EventNSClientNewLog("◄ WS", "disconnect alarm event"))
     }
 
-    private val onDataCreateUpdate = Emitter.Listener { args ->
+    private val onDataCreate = Emitter.Listener {args ->
+
+        handleDataOperation(args, "create")
+    }
+
+    private val onDataUpdate = Emitter.Listener {args ->
+        handleDataOperation(args, "update")
+    }
+
+    private fun handleDataOperation(args: Array<Any>, operation: String) {
         val response = args[0] as JSONObject
-        aapsLogger.debug(LTag.NSCLIENT, "onDataCreateUpdate: $response")
+        aapsLogger.debug(LTag.NSCLIENT, "onData${operation.replaceFirstChar { it.uppercase() }}: $response")
         val collection = response.getString("colName")
         val docJson = response.getJSONObject("doc")
         val docString = response.getString("doc")
-        rxBus.send(EventNSClientNewLog("◄ WS CREATE/UPDATE", "$collection <i>$docString</i>"))
+        rxBus.send(EventNSClientNewLog("◄ WS $operation.uppercase()", "$collection <i>$docString</i>"))
         val srvModified = docJson.getLong("srvModified")
         nsClientV3Plugin.lastLoadedSrvModified.set(collection, srvModified)
         nsClientV3Plugin.storeLastLoadedSrvModified()
