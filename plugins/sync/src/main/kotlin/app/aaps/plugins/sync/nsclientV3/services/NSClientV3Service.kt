@@ -5,26 +5,40 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.TT
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
+import app.aaps.core.data.ue.ValueWithUnit
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.nsclient.NSAlarm
 import app.aaps.core.interfaces.nsclient.StoreDataForDb
+import app.aaps.core.interfaces.pump.DetailedBolusInfo
+import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventDismissNotification
 import app.aaps.core.interfaces.rx.events.EventNSClientNewLog
 import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.smsCommunicator.Sms
 import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.core.interfaces.utils.SafeParse
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.Preferences
 import app.aaps.core.keys.StringKey
+import app.aaps.core.keys.UnitDoubleKey
+import app.aaps.core.nssdk.localmodel.treatment.NSTreatment
 import app.aaps.core.nssdk.mapper.toNSDeviceStatus
 import app.aaps.core.nssdk.mapper.toNSFood
 import app.aaps.core.nssdk.mapper.toNSSgvV3
 import app.aaps.core.nssdk.mapper.toNSTreatment
+import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.plugins.sync.R
 import app.aaps.plugins.sync.nsShared.NSAlarmObject
 import app.aaps.plugins.sync.nsShared.NsIncomingDataProcessor
@@ -34,6 +48,7 @@ import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
 import dagger.android.DaggerService
 import dagger.android.HasAndroidInjector
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.plusAssign
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -41,7 +56,10 @@ import io.socket.emitter.Emitter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URISyntaxException
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import app.aaps.core.interfaces.constraints.ConstraintsChecker
 
 @Suppress("SpellCheckingInspection")
 class NSClientV3Service : DaggerService() {
@@ -59,6 +77,7 @@ class NSClientV3Service : DaggerService() {
     @Inject lateinit var storeDataForDb: StoreDataForDb
     @Inject lateinit var uiInteraction: UiInteraction
     @Inject lateinit var nsDeviceStatusHandler: NSDeviceStatusHandler
+    @Inject lateinit var constraintChecker: ConstraintsChecker
 
     private val disposable = CompositeDisposable()
 
@@ -227,6 +246,60 @@ class NSClientV3Service : DaggerService() {
     private val onDataUpdate = Emitter.Listener {args ->
         handleDataOperation(args, "update")
     }
+    private val commands = mapOf(
+        "BG" to "BG",
+        "LOOP" to "LOOP STOP/DISABLE/START/ENABLE/RESUME/STATUS/CLOSED/LGS\nLOOP SUSPEND 20",
+        "AAPSCLIENT" to "AAPSCLIENT RESTART",
+        "PUMP" to "PUMP\nPUMP CONNECT\nPUMP DISCONNECT 30\n",
+        "BASAL" to "BASAL STOP/CANCEL\nBASAL 0.3\nBASAL 0.3 20\nBASAL 30%\nBASAL 30% 20\n",
+        "BOLUS" to "BOLUS 1.2\nBOLUS 1.2 MEAL",
+        "EXTENDED" to "EXTENDED STOP/CANCEL\nEXTENDED 2 120",
+        "CAL" to "CAL 5.6",
+        "PROFILE" to "PROFILE STATUS/LIST\nPROFILE 1\nPROFILE 2 30",
+        "TARGET" to "TARGET MEAL/ACTIVITY/HYPO/STOP",
+        "SMS" to "SMS DISABLE/STOP",
+        "CARBS" to "CARBS 12\nCARBS 12 23:05\nCARBS 12 11:05PM",
+        "HELP" to "HELP\nHELP command",
+        "RESTART" to "RESTART\nRestart AAPS"
+    )
+    fun isCommand(command: String): Boolean {
+        var found = false
+        commands.forEach { (k, _) ->
+            if (k == command) found = true
+        }
+        return found
+    }
+    private fun processBOLUS(divided: Array<String>) {
+        var bolus = SafeParse.stringToDouble(divided[1])
+        bolus = constraintChecker.applyBolusConstraints(ConstraintObject(bolus, aapsLogger)).value()
+        if (bolus > 0.0) {
+            Log.d("Justonice", "processBOLUS: $bolus")
+        }
+    }
+    private fun onRemoteInject(treatment: NSTreatment) {
+        val remoteCommandsAllowed = preferences.get(BooleanKey.SmsAllowRemoteCommands)
+
+        val notes = treatment.notes
+
+        if (notes == null || !remoteCommandsAllowed) {
+            return
+        }
+
+        val divided = notes.split(Regex("\\s+")).toTypedArray()
+
+        if (divided.isNotEmpty() && isCommand(divided[0].uppercase(Locale.getDefault()))) {
+            when (divided[0].uppercase(Locale.getDefault())) {
+                "BOLUS"      ->
+                    if (divided.size == 2 || divided.size == 3) processBOLUS(divided)
+                    // else if (commandQueue.bolusInQueue()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_another_bolus_in_queue)))
+                    // else if (divided.size == 2 && dateUtil.now() - lastRemoteBolusTime < minDistance) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_remote_bolus_not_allowed)))
+                    // else if (divided.size == 2 && pump.isSuspended()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.core.ui.R.string.pumpsuspended)))
+                    // else if (divided.size == 2 || divided.size == 3) processBOLUS(divided, receivedSms)
+                    // else sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.wrong_format)))
+
+            }
+        }
+    }
 
     private fun handleDataOperation(args: Array<Any>, operation: String) {
         val response = args[0] as JSONObject
@@ -249,6 +322,16 @@ class NSClientV3Service : DaggerService() {
                 nsIncomingDataProcessor.processProfile(docJson, doFullSync = false)
 
             "treatments"   -> docString.toNSTreatment()?.let {
+                val treatments = listOf(it)
+                if (operation == "create" && treatments.size == 1) {
+                    val treatment = treatments.first()
+                    val eventType = treatment.eventType
+                    val notes = treatment.notes
+                    if (eventType.text == "Announcement") {
+                        // rebootDevice(this, "reboot")
+                        onRemoteInject(treatment)
+                    }
+                }
                 nsIncomingDataProcessor.processTreatments(listOf(it), doFullSync = false)
                 storeDataForDb.storeTreatmentsToDb(fullSync = false)
             }
