@@ -1,11 +1,16 @@
 package app.aaps.core.interfaces.pump
 
+import app.aaps.core.data.model.BS
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.TB
+import app.aaps.core.data.model.TE
+import app.aaps.core.data.pump.defs.PumpType
+import app.aaps.core.data.time.T
+import app.aaps.core.data.ue.Sources
+import app.aaps.core.interfaces.R
 import app.aaps.core.interfaces.profile.Profile
-import app.aaps.core.interfaces.pump.defs.PumpType
+import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.DecimalFormatter
-import app.aaps.core.interfaces.utils.T
-import app.aaps.database.entities.TemporaryBasal
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -91,18 +96,14 @@ interface PumpSync {
                 if (isAbsolute) rate
                 else profile.getBasal(time) * rate / 100
 
-            fun toStringFull(dateUtil: DateUtil, decimalFormatter: DecimalFormatter): String {
+            fun toStringFull(dateUtil: DateUtil, rh: ResourceHelper): String {
                 return when {
                     isAbsolute -> {
-                        decimalFormatter.to2Decimal(rate) + "U/h @" +
-                            dateUtil.timeString(timestamp) +
-                            " " + getPassedDurationToTimeInMinutes(dateUtil.now()) + "/" + durationInMinutes + "'"
+                        rh.gs(R.string.temp_basal_absolute_rate, rate, dateUtil.timeString(timestamp), getPassedDurationToTimeInMinutes(dateUtil.now()), durationInMinutes)
                     }
 
                     else       -> { // percent
-                        rate.toString() + "% @" +
-                            dateUtil.timeString(timestamp) +
-                            " " + getPassedDurationToTimeInMinutes(dateUtil.now()) + "/" + durationInMinutes + "'"
+                        rh.gs(R.string.temp_basal_percent_rate, rate, dateUtil.timeString(timestamp), getPassedDurationToTimeInMinutes(dateUtil.now()), durationInMinutes)
                     }
                 }
             }
@@ -134,10 +135,8 @@ interface PumpSync {
             private fun getPassedDurationToTimeInMinutes(time: Long): Int =
                 ((min(time, end) - timestamp) / 60.0 / 1000).roundToInt()
 
-            fun toStringFull(dateUtil: DateUtil, decimalFormatter: DecimalFormatter): String =
-                "E " + decimalFormatter.to2Decimal(rate) + "U/h @" +
-                    dateUtil.timeString(timestamp) +
-                    " " + getPassedDurationToTimeInMinutes(dateUtil.now()) + "/" + T.msecs(duration).mins() + "min"
+            fun toStringFull(dateUtil: DateUtil, rh: ResourceHelper): String =
+                rh.gs(R.string.temp_basal_extended_bolus, rate, dateUtil.timeString(timestamp), getPassedDurationToTimeInMinutes(dateUtil.now()), T.msecs(duration).mins())
         }
 
         data class Bolus(val timestamp: Long, val amount: Double)
@@ -171,7 +170,7 @@ interface PumpSync {
      * @param pumpSerial    pump serial number
      * @return true if new record is created
      **/
-    fun addBolusWithTempId(timestamp: Long, amount: Double, temporaryId: Long, type: DetailedBolusInfo.BolusType, pumpType: PumpType, pumpSerial: String): Boolean
+    fun addBolusWithTempId(timestamp: Long, amount: Double, temporaryId: Long, type: BS.Type, pumpType: PumpType, pumpSerial: String): Boolean
 
     /**
      * Synchronization of boluses with temporary id
@@ -195,7 +194,7 @@ interface PumpSync {
      * @param pumpSerial    pump serial number
      * @return true if record is successfully updated
      **/
-    fun syncBolusWithTempId(timestamp: Long, amount: Double, temporaryId: Long, type: DetailedBolusInfo.BolusType?, pumpId: Long?, pumpType: PumpType, pumpSerial: String): Boolean
+    fun syncBolusWithTempId(timestamp: Long, amount: Double, temporaryId: Long, type: BS.Type?, pumpId: Long?, pumpType: PumpType, pumpSerial: String): Boolean
 
     /**
      * Synchronization of boluses
@@ -214,7 +213,7 @@ interface PumpSync {
      * @param pumpSerial    pump serial number
      * @return true if new record is created
      **/
-    fun syncBolusWithPumpId(timestamp: Long, amount: Double, type: DetailedBolusInfo.BolusType?, pumpId: Long, pumpType: PumpType, pumpSerial: String): Boolean
+    fun syncBolusWithPumpId(timestamp: Long, amount: Double, type: BS.Type?, pumpId: Long, pumpType: PumpType, pumpSerial: String): Boolean
 
     /**
      * Synchronization of carbs
@@ -255,7 +254,27 @@ interface PumpSync {
      * @param pumpSerial    pump serial number
      * @return true if new record is created
      **/
-    fun insertTherapyEventIfNewWithTimestamp(timestamp: Long, type: DetailedBolusInfo.EventType, note: String? = null, pumpId: Long? = null, pumpType: PumpType, pumpSerial: String): Boolean
+    fun insertTherapyEventIfNewWithTimestamp(timestamp: Long, type: TE.Type, note: String? = null, pumpId: Long? = null, pumpType: PumpType, pumpSerial: String): Boolean
+
+    /**
+     * Synchronization of FINGER_STICK_BG_VALUE events
+     *
+     * Assuming there will be no clash on timestamp from different pumps
+     * only timestamp and type is compared
+     *
+     * If db record doesn't exist, new record is created.
+     * If exists, data is ignored
+     *
+     * @param timestamp     timestamp of event from pump history
+     * @param glucose       glucose value
+     * @param glucoseUnit   glucose unit
+     * @param note          note
+     * @param pumpId        pump id from history if available
+     * @param pumpType      pump type like PumpType.ACCU_CHEK_COMBO
+     * @param pumpSerial    pump serial number
+     * @return true if new record is created
+     **/
+    fun insertFingerBgIfNewWithTimestamp(timestamp: Long, glucose: Double, glucoseUnit: GlucoseUnit, note: String? = null, pumpId: Long? = null, pumpType: PumpType, pumpSerial: String): Boolean
 
     /**
      * Create an announcement
@@ -284,17 +303,17 @@ interface PumpSync {
         PUMP_SUSPEND,           // Initiated on PUMP
         SUPERBOLUS;
 
-        fun toDbType(): TemporaryBasal.Type =
+        fun toDbType(): TB.Type =
             when (this) {
-                NORMAL                -> TemporaryBasal.Type.NORMAL
-                EMULATED_PUMP_SUSPEND -> TemporaryBasal.Type.EMULATED_PUMP_SUSPEND
-                PUMP_SUSPEND          -> TemporaryBasal.Type.PUMP_SUSPEND
-                SUPERBOLUS            -> TemporaryBasal.Type.SUPERBOLUS
+                NORMAL                -> TB.Type.NORMAL
+                EMULATED_PUMP_SUSPEND -> TB.Type.EMULATED_PUMP_SUSPEND
+                PUMP_SUSPEND          -> TB.Type.PUMP_SUSPEND
+                SUPERBOLUS            -> TB.Type.SUPERBOLUS
             }
 
         companion object {
 
-            fun fromDbType(dbType: TemporaryBasal.Type) = values().firstOrNull { it.name == dbType.name }
+            fun fromDbType(dbType: TB.Type) = entries.firstOrNull { it.name == dbType.name }
                 ?: NORMAL
         }
 
@@ -349,15 +368,16 @@ interface PumpSync {
      *      endPumpId is stored to running record
      * If db record doesn't exist data is ignored and false returned
      *
-     * see [app.aaps.database.impl.transactions.SyncPumpCancelTemporaryBasalIfAnyTransaction]
+     * see [app.aaps.database.transactions.SyncPumpCancelTemporaryBasalIfAnyTransaction]
      *
      * @param timestamp     timestamp of event from pump history
      * @param endPumpId     pump id of ending event from history
      * @param pumpType      pump type like PumpType.ACCU_CHEK_COMBO
      * @param pumpSerial    pump serial number
+     * @param ignorePumpIds if true data is not checked for valid pump
      * @return true if running record is found and ended by changing duration
      **/
-    fun syncStopTemporaryBasalWithPumpId(timestamp: Long, endPumpId: Long, pumpType: PumpType, pumpSerial: String): Boolean
+    fun syncStopTemporaryBasalWithPumpId(timestamp: Long, endPumpId: Long, pumpType: PumpType, pumpSerial: String, ignorePumpIds: Boolean = false): Boolean
 
     /**
      * Create temporary basal with temporary id
@@ -432,10 +452,12 @@ interface PumpSync {
      * If db record doesn't exist data is ignored and false returned
      *
      *
-     * @param id            id of temporary basal
+     * @param id temporary basal id
+     * @param sources caller
+     * @param timestamp caller
      * @return true if running record is found and invalidated
      **/
-    fun invalidateTemporaryBasal(id: Long): Boolean
+    fun invalidateTemporaryBasal(id: Long, sources: Sources, timestamp: Long): Boolean
 
     /**
      * Invalidate of temporary basals that failed to start

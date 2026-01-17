@@ -23,18 +23,11 @@ class InputLocationMode(private val rh: ResourceHelper) : Element {
                 GOING_OUT -> R.string.location_going_out
             }
 
-        fun fromString(wanted: String): Mode {
-            for (c in values()) {
-                if (c.toString() === wanted) return c
-            }
-            throw IllegalStateException("Invalid parameter")
-        }
-
         companion object {
 
             fun labels(rh: ResourceHelper): List<String> {
                 val list: MutableList<String> = ArrayList()
-                for (c in values()) {
+                for (c in Mode.entries) {
                     list.add(rh.gs(c.stringRes))
                 }
                 return list
@@ -60,7 +53,7 @@ class InputLocationMode(private val rh: ResourceHelper) : Element {
                 layoutParams = spinnerParams
                 onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        value = Mode.values()[position]
+                        value = Mode.entries.toTypedArray()[position]
                     }
 
                     override fun onNothingSelected(parent: AdapterView<*>?) {}

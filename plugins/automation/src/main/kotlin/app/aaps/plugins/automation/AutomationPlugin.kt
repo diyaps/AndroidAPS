@@ -4,19 +4,24 @@ import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
-import app.aaps.annotations.OpenForTesting
+import androidx.preference.PreferenceCategory
+import androidx.preference.PreferenceManager
+import androidx.preference.PreferenceScreen
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.plugin.PluginType
+import app.aaps.core.data.pump.defs.PumpType
+import app.aaps.core.data.time.T
 import app.aaps.core.interfaces.aps.Loop
 import app.aaps.core.interfaces.automation.Automation
 import app.aaps.core.interfaces.automation.AutomationEvent
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
-import app.aaps.core.interfaces.db.GlucoseUnit
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.plugin.PluginBase
+import app.aaps.core.interfaces.plugin.PluginBaseWithPreferences
 import app.aaps.core.interfaces.plugin.PluginDescription
-import app.aaps.core.interfaces.plugin.PluginType
 import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.AapsSchedulers
@@ -25,10 +30,11 @@ import app.aaps.core.interfaces.rx.events.EventBTChange
 import app.aaps.core.interfaces.rx.events.EventChargingState
 import app.aaps.core.interfaces.rx.events.EventNetworkChange
 import app.aaps.core.interfaces.rx.events.EventPreferenceChange
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.T
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
+import app.aaps.core.keys.StringKey
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.validators.preferences.AdaptiveListPreference
 import app.aaps.plugins.automation.actions.Action
 import app.aaps.plugins.automation.actions.ActionAlarm
 import app.aaps.plugins.automation.actions.ActionCarePortalEvent
@@ -36,7 +42,9 @@ import app.aaps.plugins.automation.actions.ActionNotification
 import app.aaps.plugins.automation.actions.ActionProfileSwitch
 import app.aaps.plugins.automation.actions.ActionProfileSwitchPercent
 import app.aaps.plugins.automation.actions.ActionRunAutotune
+import app.aaps.plugins.automation.actions.ActionSMBChange
 import app.aaps.plugins.automation.actions.ActionSendSMS
+import app.aaps.plugins.automation.actions.ActionSettingsExport
 import app.aaps.plugins.automation.actions.ActionStartTempTarget
 import app.aaps.plugins.automation.actions.ActionStopProcessing
 import app.aaps.plugins.automation.actions.ActionStopTempTarget
@@ -45,6 +53,7 @@ import app.aaps.plugins.automation.elements.InputDelta
 import app.aaps.plugins.automation.events.EventAutomationDataChanged
 import app.aaps.plugins.automation.events.EventAutomationUpdateGui
 import app.aaps.plugins.automation.events.EventLocationChange
+import app.aaps.plugins.automation.keys.AutomationStringKey
 import app.aaps.plugins.automation.services.LocationServiceHelper
 import app.aaps.plugins.automation.triggers.Trigger
 import app.aaps.plugins.automation.triggers.TriggerAutosensValue
@@ -52,14 +61,22 @@ import app.aaps.plugins.automation.triggers.TriggerBTDevice
 import app.aaps.plugins.automation.triggers.TriggerBg
 import app.aaps.plugins.automation.triggers.TriggerBolusAgo
 import app.aaps.plugins.automation.triggers.TriggerCOB
+import app.aaps.plugins.automation.triggers.TriggerCannulaAge
 import app.aaps.plugins.automation.triggers.TriggerConnector
 import app.aaps.plugins.automation.triggers.TriggerDelta
 import app.aaps.plugins.automation.triggers.TriggerHeartRate
+import app.aaps.plugins.automation.triggers.TriggerInsulinAge
 import app.aaps.plugins.automation.triggers.TriggerIob
 import app.aaps.plugins.automation.triggers.TriggerLocation
+import app.aaps.plugins.automation.triggers.TriggerPodChange
 import app.aaps.plugins.automation.triggers.TriggerProfilePercent
+import app.aaps.plugins.automation.triggers.TriggerPumpBatteryAge
+import app.aaps.plugins.automation.triggers.TriggerPumpBatteryLevel
 import app.aaps.plugins.automation.triggers.TriggerPumpLastConnection
 import app.aaps.plugins.automation.triggers.TriggerRecurringTime
+import app.aaps.plugins.automation.triggers.TriggerReservoirLevel
+import app.aaps.plugins.automation.triggers.TriggerSensorAge
+import app.aaps.plugins.automation.triggers.TriggerStepsCount
 import app.aaps.plugins.automation.triggers.TriggerTempTarget
 import app.aaps.plugins.automation.triggers.TriggerTempTargetValue
 import app.aaps.plugins.automation.triggers.TriggerTime
@@ -77,76 +94,75 @@ import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@OpenForTesting
 @Singleton
 class AutomationPlugin @Inject constructor(
-    injector: HasAndroidInjector,
+    private val injector: HasAndroidInjector,
+    aapsLogger: AAPSLogger,
     rh: ResourceHelper,
+    preferences: Preferences,
     private val context: Context,
-    private val sp: SP,
     private val fabricPrivacy: FabricPrivacy,
     private val loop: Loop,
     private val rxBus: RxBus,
     private val constraintChecker: ConstraintsChecker,
-    aapsLogger: AAPSLogger,
     private val aapsSchedulers: AapsSchedulers,
     private val config: Config,
     private val locationServiceHelper: LocationServiceHelper,
     private val dateUtil: DateUtil,
     private val activePlugin: ActivePlugin,
     private val timerUtil: TimerUtil
-) : PluginBase(
-    PluginDescription()
+) : PluginBaseWithPreferences(
+    pluginDescription = PluginDescription()
         .mainType(PluginType.GENERAL)
         .fragmentClass(AutomationFragment::class.qualifiedName)
-        .pluginIcon(app.aaps.core.main.R.drawable.ic_automation)
+        .pluginIcon(app.aaps.core.objects.R.drawable.ic_automation)
         .pluginName(R.string.automation)
         .shortName(R.string.automation_short)
-        .showInList(config.APS)
+        .showInList { config.APS }
         .neverVisible(!config.APS)
-        .preferencesId(R.xml.pref_automation)
+        .preferencesId(PluginDescription.PREFERENCE_SCREEN)
         .description(R.string.automation_description),
-    aapsLogger, rh, injector
+    ownPreferences = listOf(AutomationStringKey::class.java),
+    aapsLogger, rh, preferences
 ), Automation {
 
     private var disposable: CompositeDisposable = CompositeDisposable()
-
-    private val keyAutomationEvents = "AUTOMATION_EVENTS"
 
     private val automationEvents = ArrayList<AutomationEventObject>()
     var executionLog: MutableList<String> = ArrayList()
     var btConnects: MutableList<EventBTChange> = ArrayList()
 
-    private val handler = Handler(HandlerThread(this::class.simpleName + "Handler").also { it.start() }.looper)
-    private lateinit var refreshLoop: Runnable
+    private var handler: Handler? = null
+    private var refreshLoop: Runnable
 
     companion object {
 
-        const val event =
+        const val EMPTY_EVENT =
             "{\"title\":\"Low\",\"enabled\":true,\"trigger\":\"{\\\"type\\\":\\\"TriggerConnector\\\",\\\"data\\\":{\\\"connectorType\\\":\\\"AND\\\",\\\"triggerList\\\":[\\\"{\\\\\\\"type\\\\\\\":\\\\\\\"TriggerBg\\\\\\\",\\\\\\\"data\\\\\\\":{\\\\\\\"bg\\\\\\\":4,\\\\\\\"comparator\\\\\\\":\\\\\\\"IS_LESSER\\\\\\\",\\\\\\\"units\\\\\\\":\\\\\\\"mmol\\\\\\\"}}\\\",\\\"{\\\\\\\"type\\\\\\\":\\\\\\\"TriggerDelta\\\\\\\",\\\\\\\"data\\\\\\\":{\\\\\\\"value\\\\\\\":-0.1,\\\\\\\"units\\\\\\\":\\\\\\\"mmol\\\\\\\",\\\\\\\"deltaType\\\\\\\":\\\\\\\"DELTA\\\\\\\",\\\\\\\"comparator\\\\\\\":\\\\\\\"IS_LESSER\\\\\\\"}}\\\"]}}\",\"actions\":[\"{\\\"type\\\":\\\"ActionStartTempTarget\\\",\\\"data\\\":{\\\"value\\\":8,\\\"units\\\":\\\"mmol\\\",\\\"durationInMinutes\\\":60}}\"]}"
     }
 
     init {
         refreshLoop = Runnable {
             processActions()
-            handler.postDelayed(refreshLoop, T.secs(150).msecs())
+            handler?.postDelayed(refreshLoop, T.secs(150).msecs())
         }
     }
 
-    override fun specialEnableCondition(): Boolean = !config.NSCLIENT
+    override fun specialEnableCondition(): Boolean = !config.AAPSCLIENT
 
     override fun onStart() {
+        handler = Handler(HandlerThread(this::class.simpleName + "Handler").also { it.start() }.looper)
         locationServiceHelper.startService(context)
 
         super.onStart()
         loadFromSP()
-        handler.postDelayed(refreshLoop, T.mins(1).msecs())
+        handler?.postDelayed(refreshLoop, T.mins(1).msecs())
 
         disposable += rxBus
             .toObservable(EventPreferenceChange::class.java)
             .observeOn(aapsSchedulers.io)
             .subscribe({ e ->
-                           if (e.isChanged(rh.gs(R.string.key_location))) {
+                           if (e.isChanged(StringKey.AutomationLocation.key)) {
                                locationServiceHelper.stopService(context)
                                locationServiceHelper.startService(context)
                            }
@@ -182,7 +198,9 @@ class AutomationPlugin @Inject constructor(
 
     override fun onStop() {
         disposable.clear()
-        handler.removeCallbacks(refreshLoop)
+        handler?.removeCallbacksAndMessages(null)
+        handler?.looper?.quit()
+        handler = null
         locationServiceHelper.stopService(context)
         super.onStop()
     }
@@ -199,13 +217,13 @@ class AutomationPlugin @Inject constructor(
             e.printStackTrace()
         }
 
-        sp.putString(keyAutomationEvents, array.toString())
+        preferences.put(AutomationStringKey.AutomationEvents, array.toString())
     }
 
     @Synchronized
     private fun loadFromSP() {
         automationEvents.clear()
-        val data = sp.getString(keyAutomationEvents, "")
+        val data = preferences.get(AutomationStringKey.AutomationEvents)
         if (data != "")
             try {
                 val array = JSONArray(data)
@@ -218,33 +236,41 @@ class AutomationPlugin @Inject constructor(
                 e.printStackTrace()
             }
         else
-            automationEvents.add(AutomationEventObject(injector).fromJSON(event))
+            automationEvents.add(AutomationEventObject(injector).fromJSON(EMPTY_EVENT))
     }
 
     internal fun processActions() {
         if (!config.appInitialized) return
+        /**
+         * Changed to false if some condition prevents automation from running.
+         * In this case only system automations are enabled.
+         */
         var commonEventsEnabled = true
-        if (loop.isSuspended || !(loop as PluginBase).isEnabled()) {
-            aapsLogger.debug(LTag.AUTOMATION, "Loop deactivated")
-            executionLog.add(rh.gs(app.aaps.core.ui.R.string.loopisdisabled))
+        /*
+         * Running mode must report running to process automation events.
+         */
+        if (loop.runningMode.isSuspended() || !loop.runningMode.isLoopRunning()) {
+            aapsLogger.debug(LTag.AUTOMATION, "Loop suspended")
+            executionLog.add(rh.gs(app.aaps.core.ui.R.string.loopsuspended))
             rxBus.send(EventAutomationUpdateGui())
             commonEventsEnabled = false
         }
-        if (loop.isDisconnected || !(loop as PluginBase).isEnabled()) {
-            aapsLogger.debug(LTag.AUTOMATION, "Loop disconnected")
+        /*
+         * Loop must be enabled to process automation events.
+         */
+        if (!(loop as PluginBase).isEnabled()) {
+            aapsLogger.debug(LTag.AUTOMATION, "Loop not enabled")
             executionLog.add(rh.gs(app.aaps.core.ui.R.string.disconnected))
             rxBus.send(EventAutomationUpdateGui())
             commonEventsEnabled = false
         }
-        if (activePlugin.activePump.isSuspended()) {
-            aapsLogger.debug(LTag.AUTOMATION, "Pump suspended")
-            executionLog.add(rh.gs(app.aaps.core.ui.R.string.waitingforpump))
-            rxBus.send(EventAutomationUpdateGui())
-            commonEventsEnabled = false
-        }
+        /*
+         * Constraints must not block automation
+         */
         val enabled = constraintChecker.isAutomationEnabled()
         if (!enabled.value()) {
-            executionLog.add(enabled.getMostLimitedReasons())
+            val reason = enabled.getMostLimitedReasons()
+            if (executionLog.lastOrNull() != reason) executionLog.add(reason)
             rxBus.send(EventAutomationUpdateGui())
             commonEventsEnabled = false
         }
@@ -260,10 +286,12 @@ class AutomationPlugin @Inject constructor(
                 }
         }
 
-        // we cannot detect connected BT devices
-        // so let's collect all connection/disconnections between 2 runs of processActions()
-        // TriggerBTDevice can pick up and process these events
-        // after processing clear events to prevent repeated actions
+        /*
+         * We cannot detect connected BT devices
+         * So, let's collect all connection/disconnections between 2 runs of processActions()
+         * TriggerBTDevice can pick up and process these events
+         * after processing clear events to prevent repeated actions
+         */
         btConnects.clear()
 
         storeToSP() // save last run time
@@ -362,26 +390,27 @@ class AutomationPlugin @Inject constructor(
     }
 
     fun getActionDummyObjects(): List<Action> {
-        return listOf(
-            //ActionLoopDisable(injector),
-            //ActionLoopEnable(injector),
-            //ActionLoopResume(injector),
-            //ActionLoopSuspend(injector),
+        val actions = mutableListOf(
             ActionStopProcessing(injector),
             ActionStartTempTarget(injector),
             ActionStopTempTarget(injector),
             ActionNotification(injector),
             ActionAlarm(injector),
+            ActionSettingsExport(injector),
             ActionCarePortalEvent(injector),
             ActionProfileSwitchPercent(injector),
             ActionProfileSwitch(injector),
-            ActionRunAutotune(injector),
-            ActionSendSMS(injector)
+            ActionSendSMS(injector),
+            ActionSMBChange(injector)
         )
+        if (config.isEngineeringMode() && config.isDev())
+            actions.add(ActionRunAutotune(injector))
+
+        return actions.toList()
     }
 
     fun getTriggerDummyObjects(): List<Trigger> {
-        return listOf(
+        val triggers = mutableListOf(
             TriggerConnector(injector),
             TriggerTime(injector),
             TriggerRecurringTime(injector),
@@ -400,7 +429,28 @@ class AutomationPlugin @Inject constructor(
             TriggerPumpLastConnection(injector),
             TriggerBTDevice(injector),
             TriggerHeartRate(injector),
+            TriggerSensorAge(injector),
+            TriggerCannulaAge(injector),
+            TriggerReservoirLevel(injector),
+            TriggerStepsCount(injector)
         )
+
+        val pump = activePlugin.activePump
+
+        if (pump.pumpDescription.isPatchPump) {
+            triggers.add(TriggerPodChange(injector))
+        } else {
+            triggers.add(TriggerInsulinAge(injector))
+        }
+        if (pump.pumpDescription.isBatteryReplaceable || pump.isBatteryChangeLoggingEnabled()) {
+            triggers.add(TriggerPumpBatteryAge(injector))
+        }
+        val erosBatteryLinkAvailable = pump.model() == PumpType.OMNIPOD_EROS && pump.isUseRileyLinkBatteryLevel()
+        if (pump.model().supportBatteryLevel || erosBatteryLinkAvailable) {
+            triggers.add(TriggerPumpBatteryLevel(injector))
+        }
+
+        return triggers.toList()
     }
 
     /**
@@ -506,5 +556,28 @@ class AutomationPlugin @Inject constructor(
             title = rh.gs(app.aaps.core.ui.R.string.bolus_reminder)
         }
         removeIfExists(event)
+    }
+
+    override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {
+        if (requiredKey != null) return
+        val entries = arrayOf<CharSequence>(
+            rh.gs(R.string.use_passive_location),
+            rh.gs(R.string.use_network_location),
+            rh.gs(R.string.use_gps_location),
+        )
+
+        val entryValues = arrayOf<CharSequence>(
+            "PASSIVE",
+            "NETWORK",
+            "GPS",
+        )
+        val category = PreferenceCategory(context)
+        parent.addPreference(category)
+        category.apply {
+            key = "automation_settings"
+            title = rh.gs(app.aaps.core.ui.R.string.automation)
+            initialExpandedChildrenCount = 0
+            addPreference(AdaptiveListPreference(ctx = context, stringKey = StringKey.AutomationLocation, title = R.string.locationservice, entries = entries, entryValues = entryValues))
+        }
     }
 }

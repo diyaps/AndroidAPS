@@ -72,7 +72,7 @@ class EventDataTest {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
-        EventData.ActionProfileSwitchPreCheck(1, 2).let {
+        EventData.ActionProfileSwitchPreCheck(1, 2, 3).let {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
@@ -112,7 +112,7 @@ class EventDataTest {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
-        EventData.ActionProfileSwitchConfirmed(1, 2).let {
+        EventData.ActionProfileSwitchConfirmed(1, 2, 3).let {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
@@ -140,11 +140,11 @@ class EventDataTest {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
-        EventData.SingleBg(1, sgv = 2.0, high = 3.0, low = 4.0).let {
+        EventData.SingleBg(dataset = 0, 1, sgv = 2.0, high = 3.0, low = 4.0).let {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
-        EventData.GraphData(arrayListOf(EventData.SingleBg(1, sgv = 2.0, high = 3.0, low = 4.0))).let {
+        EventData.GraphData(arrayListOf(EventData.SingleBg(dataset = 0, 1, sgv = 2.0, high = 3.0, low = 4.0))).let {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
@@ -152,7 +152,7 @@ class EventDataTest {
             arrayListOf(EventData.TreatmentData.TempBasal(1, 2.0, 3, 4.0, 5.0)),
             arrayListOf(EventData.TreatmentData.Basal(1, 2, 3.0)),
             arrayListOf(EventData.TreatmentData.Treatment(1, 2.0, 3.0, true, isValid = true)),
-            arrayListOf(EventData.SingleBg(1, sgv = 2.0, high = 3.0, low = 4.0))
+            arrayListOf(EventData.SingleBg(dataset = 0, 1, sgv = 2.0, high = 3.0, low = 4.0))
         ).let {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
@@ -177,7 +177,7 @@ class EventDataTest {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }
-        EventData.ActionProfileSwitchOpenActivity(1, 2).let {
+        EventData.ActionProfileSwitchOpenActivity(1, 2, 3).let {
             assertThat(EventData.deserializeByte(it.serializeByte())).isEqualTo(it)
             assertThat(EventData.deserialize(it.serialize())).isEqualTo(it)
         }

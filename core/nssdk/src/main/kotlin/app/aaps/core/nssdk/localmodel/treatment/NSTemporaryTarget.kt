@@ -20,6 +20,7 @@ data class NSTemporaryTarget(
     override val pumpType: String?,
     override val pumpSerial: String?,
     override var app: String? = null,
+    /** Duration in milliseconds */
     val duration: Long,
     val targetBottom: Double,
     val targetTop: Double,
@@ -40,7 +41,7 @@ data class NSTemporaryTarget(
 
         companion object {
 
-            fun fromString(reason: String?) = values().firstOrNull { it.text == reason } ?: CUSTOM
+            fun fromString(reason: String?) = Reason.entries.firstOrNull { it.text == reason } ?: CUSTOM
         }
     }
 }

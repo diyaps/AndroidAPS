@@ -1,11 +1,19 @@
 package app.aaps.core.interfaces.plugin
 
+import android.content.Context
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceManager
+import androidx.preference.PreferenceScreen
+import app.aaps.core.data.plugin.PluginType
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.resources.ResourceHelper
-import dagger.android.HasAndroidInjector
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import org.jetbrains.annotations.TestOnly
 
 /**
  * Created by mike on 09.06.2016.
@@ -13,9 +21,10 @@ import dagger.android.HasAndroidInjector
 abstract class PluginBase(
     val pluginDescription: PluginDescription,
     val aapsLogger: AAPSLogger,
-    val rh: ResourceHelper,
-    val injector: HasAndroidInjector
+    val rh: ResourceHelper
 ) {
+
+    private val scope = CoroutineScope(Dispatchers.Default + Job())
 
     enum class State {
         NOT_INITIALIZED, ENABLED, DISABLED
@@ -77,6 +86,31 @@ abstract class PluginBase(
                     onStateChange(type, state, State.ENABLED)
                     state = State.ENABLED
                     aapsLogger.debug(LTag.CORE, "Starting: $name")
+                    scope.launch { onStart() }
+                }
+            } else { // disabling plugin
+                if (state == State.ENABLED) {
+                    onStateChange(type, state, State.DISABLED)
+                    state = State.DISABLED
+                    scope.launch { onStop() }
+                    aapsLogger.debug(LTag.CORE, "Stopping: $name")
+                }
+            }
+        }
+    }
+
+    /**
+     * Version of setPluginEnabled used for testing only.
+     * OnStart/OnStop is called directly.
+     */
+    @TestOnly
+    fun setPluginEnabledBlocking(type: PluginType, newState: Boolean) {
+        if (type == pluginDescription.mainType) {
+            if (newState) { // enabling plugin
+                if (state != State.ENABLED) {
+                    onStateChange(type, state, State.ENABLED)
+                    state = State.ENABLED
+                    aapsLogger.debug(LTag.CORE, "Starting: $name")
                     onStart()
                 }
             } else { // disabling plugin
@@ -102,7 +136,7 @@ abstract class PluginBase(
     }
 
     fun showInList(type: PluginType): Boolean {
-        if (pluginDescription.mainType == type) return pluginDescription.showInList && specialShowInListCondition()
+        if (pluginDescription.mainType == type) return pluginDescription.showInList.invoke() && specialShowInListCondition()
         return false
     }
 
@@ -114,9 +148,16 @@ abstract class PluginBase(
         return true
     }
 
-    protected open fun onStart() {}
-    protected open fun onStop() {}
+    open fun onStart() {}
+    open fun onStop() {}
     protected open fun onStateChange(type: PluginType?, oldState: State?, newState: State?) {}
     open fun preprocessPreferences(preferenceFragment: PreferenceFragmentCompat) {}
     open fun updatePreferenceSummary(pref: Preference) {}
+
+    /**
+     * Add [PreferenceScreen] to preferences
+     *
+     * Plugin can provide either this method or [preferencesId] XML
+     */
+    open fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {}
 }

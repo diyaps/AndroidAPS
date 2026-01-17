@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- RL keys -->
+    <!-- PumpDeviceState -->
+    <string name="pump_status_never_contacted">Aldri tilkoblet</string>
+    <string name="pump_status_sleeping">Hvilemodus</string>
+    <string name="pump_status_waking_up">Våkner opp</string>
+    <string name="pump_status_active">Aktiv</string>
+    <string name="pump_status_error_comm">Feil med kommunikasjon</string>
+    <string name="pump_status_timeout_comm">Tidsavbrudd ved kommunikasjon</string>
+    <string name="pump_status_pump_unreachable">Pumpe er utilgjengelig</string>
+    <string name="pump_status_invalid_config">Ugyldig konfigurasjon</string>
+    <string name="medtronic_pump_encoding_4b6b_local">Programvare 4b6b-koding</string>
+    <string name="medtronic_pump_encoding_4b6b_rileylink">Maskinvare 4b6b-koding</string>
+    <string name="medtronic_pump_frequency_us_ca">US &amp; Canada (916 MHz)</string>
+    <string name="medtronic_pump_frequency_worldwide">Globalt (868 Mhz)</string>
     <!-- RL BLE Config -->
     <string name="riley_link_ble_config_button_scan_start">Søk</string>
     <string name="riley_link_ble_config_scan_stop">Stopp</string>
@@ -62,8 +74,6 @@
     <!-- RileyLink - Common -->
     <string name="rileylink_target_device_medtronic">Medtronic pumpe</string>
     <string name="rileylink_target_device_omnipod">Omnipod (Eros)</string>
-    <string name="riley_link_common_yes">Ja</string>
-    <string name="riley_link_common_no">Nei</string>
     <!-- RileyLink - Preferences -->
     <string name="riley_link_show_battery_level">Vis batterinivå rapportert av OrangeLink/EmaLink/DiaLink</string>
     <string name="riley_link_show_battery_level_summary">Virker IKKE med RileyLink. Kan hende den ikke fungerer med andre RileyLink alternativer.</string>

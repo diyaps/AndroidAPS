@@ -6,11 +6,31 @@
         android:defaultValue="false"
         android:key="@string/key_heart_rate_sampling"
         android:summary="Enable heart rate sampling."
+        android:summaryOn="@string/on"
+        android:summaryOff="@string/off"
         android:title="@string/pref_heartRateSampling"
         app:wear_iconOff="@drawable/settings_off"
         app:wear_iconOn="@drawable/settings_on" />
 
-    <app.aaps.wear.interaction.utils.VersionPreference
+    <ListPreference
+        android:defaultValue="1"
+        android:entries="@array/heartrate_smoothing"
+        android:entryValues="@array/heartrate_smoothing_values"
+        android:key="@string/key_heart_rate_smoothing"
+        android:title="@string/pref_heartRateSmoothing"
+        android:summary="%s" />
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="@string/key_steps_sampling"
+        android:summary="Enable Steps sampling."
+        android:summaryOn="@string/on"
+        android:summaryOff="@string/off"
+        android:title="@string/pref_stepsSampling"
+        app:wear_iconOff="@drawable/settings_off"
+        app:wear_iconOn="@drawable/settings_on" />
+
+    <app.aaps.wear.preference.VersionPreference
         android:defaultValue="1"
         android:entries="@array/input_design"
         android:entryValues="@array/input_design_values"

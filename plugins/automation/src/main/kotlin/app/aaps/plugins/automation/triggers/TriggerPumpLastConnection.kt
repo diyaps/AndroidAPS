@@ -41,7 +41,7 @@ class TriggerPumpLastConnection(injector: HasAndroidInjector) : Trigger(injector
     }
 
     override fun shouldRun(): Boolean {
-        val lastConnection = activePlugin.activePump.lastDataTime()
+        val lastConnection = activePlugin.activePump.lastDataTime
         if (lastConnection == 0L && comparator.value === Comparator.Compare.IS_NOT_AVAILABLE) {
             aapsLogger.debug(LTag.AUTOMATION, "Ready for execution: " + friendlyDescription())
             return true
@@ -73,7 +73,7 @@ class TriggerPumpLastConnection(injector: HasAndroidInjector) : Trigger(injector
     override fun friendlyDescription(): String =
         rh.gs(R.string.automation_trigger_pump_last_connection_compared, rh.gs(comparator.value.stringRes), minutesAgo.value)
 
-    override fun icon(): Optional<Int> = Optional.of(app.aaps.core.main.R.drawable.ic_remove)
+    override fun icon(): Optional<Int> = Optional.of(app.aaps.core.objects.R.drawable.ic_remove)
 
     override fun duplicate(): Trigger = TriggerPumpLastConnection(injector, this)
 

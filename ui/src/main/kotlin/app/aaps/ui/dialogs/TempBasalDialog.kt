@@ -5,6 +5,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import app.aaps.core.data.pump.defs.PumpDescription
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
+import app.aaps.core.data.ue.ValueWithUnit
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.logging.UserEntryLogger
@@ -12,23 +16,19 @@ import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.protection.ProtectionCheck
 import app.aaps.core.interfaces.pump.PumpSync
-import app.aaps.core.interfaces.pump.defs.PumpDescription
 import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.queue.CommandQueue
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.SafeParse
-import app.aaps.core.main.constraints.ConstraintObject
-import app.aaps.core.main.utils.extensions.formatColor
+import app.aaps.core.objects.constraints.ConstraintObject
+import app.aaps.core.objects.extensions.formatColor
 import app.aaps.core.ui.dialogs.OKDialog
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.utils.HtmlHelper
-import app.aaps.database.entities.UserEntry
-import app.aaps.database.entities.ValueWithUnit
-import com.google.common.base.Joiner
-import dagger.android.HasAndroidInjector
 import app.aaps.ui.R
 import app.aaps.ui.databinding.DialogTempbasalBinding
+import com.google.common.base.Joiner
 import java.text.DecimalFormat
 import java.util.LinkedList
 import javax.inject.Inject
@@ -45,7 +45,6 @@ class TempBasalDialog : DialogFragmentWithDate() {
     @Inject lateinit var uel: UserEntryLogger
     @Inject lateinit var protectionCheck: ProtectionCheck
     @Inject lateinit var uiInteraction: UiInteraction
-    @Inject lateinit var injector: HasAndroidInjector
 
     private var queryingProtection = false
     private var isPercentPump = true
@@ -143,16 +142,20 @@ class TempBasalDialog : DialogFragmentWithDate() {
                 }
                 if (isPercentPump) {
                     uel.log(
-                        UserEntry.Action.TEMP_BASAL, UserEntry.Sources.TempBasalDialog,
-                        ValueWithUnit.Percent(percent),
-                        ValueWithUnit.Minute(durationInMinutes)
+                        action = Action.TEMP_BASAL, source = Sources.TempBasalDialog,
+                        listValues = listOf(
+                            ValueWithUnit.Percent(percent),
+                            ValueWithUnit.Minute(durationInMinutes)
+                        )
                     )
                     commandQueue.tempBasalPercent(percent, durationInMinutes, true, profile, PumpSync.TemporaryBasalType.NORMAL, callback)
                 } else {
                     uel.log(
-                        UserEntry.Action.TEMP_BASAL, UserEntry.Sources.TempBasalDialog,
-                        ValueWithUnit.Insulin(absolute),
-                        ValueWithUnit.Minute(durationInMinutes)
+                        action = Action.TEMP_BASAL, source = Sources.TempBasalDialog,
+                        listValues = listOf(
+                            ValueWithUnit.Insulin(absolute),
+                            ValueWithUnit.Minute(durationInMinutes)
+                        )
                     )
                     commandQueue.tempBasalAbsolute(absolute, durationInMinutes, true, profile, PumpSync.TemporaryBasalType.NORMAL, callback)
                 }

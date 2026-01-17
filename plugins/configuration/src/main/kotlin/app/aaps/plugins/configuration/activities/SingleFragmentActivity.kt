@@ -5,9 +5,12 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.widget.TextView
 import androidx.core.view.MenuProvider
+import app.aaps.core.interfaces.overview.Overview
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.plugin.PluginBase
+import app.aaps.core.interfaces.plugin.PluginDescription
 import app.aaps.core.interfaces.protection.ProtectionCheck
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.plugins.configuration.R
@@ -18,8 +21,10 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
     @Inject lateinit var activePlugin: ActivePlugin
     @Inject lateinit var protectionCheck: ProtectionCheck
     @Inject lateinit var uiInteraction: UiInteraction
+    @Inject lateinit var overview: Overview
 
     private var plugin: PluginBase? = null
+    private var singleFragmentMenuProvider: MenuProvider? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,10 +41,13 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
             ).commit()
         }
 
+        overview.setVersionView(findViewById<TextView>(R.id.version))
         // Add menu items without overriding methods in the Activity
-        addMenuProvider(object : MenuProvider {
+        singleFragmentMenuProvider = object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                if (plugin?.preferencesId != -1) menuInflater.inflate(R.menu.menu_single_fragment, menu)
+                if ((plugin?.preferencesId ?: return) == PluginDescription.PREFERENCE_NONE) return
+                if ((preferences.simpleMode && plugin?.pluginDescription?.preferencesVisibleInSimpleMode != true)) return
+                menuInflater.inflate(R.menu.menu_single_fragment, menu)
             }
 
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean =
@@ -53,7 +61,7 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
                         protectionCheck.queryProtection(this@SingleFragmentActivity, ProtectionCheck.Protection.PREFERENCES, {
                             val i = Intent(this@SingleFragmentActivity, uiInteraction.preferencesActivity)
                                 .setAction("app.aaps.plugins.configuration.activities.SingleFragmentActivity")
-                                .putExtra("id", plugin?.preferencesId)
+                                .putExtra(UiInteraction.PLUGIN_NAME, plugin?.javaClass?.simpleName)
                             startActivity(i)
                         }, null)
                         true
@@ -61,6 +69,12 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
 
                     else                        -> false
                 }
-        })
+        }
+        singleFragmentMenuProvider?.let { addMenuProvider(it) }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        singleFragmentMenuProvider?.let { removeMenuProvider(it) }
     }
 }

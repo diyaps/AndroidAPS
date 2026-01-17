@@ -20,12 +20,12 @@ DEV:
 ## 如何支持此项目？
 软件遵循GPL V3协议，是完全开源免费的，但开发者写代码、维护需要投入大量时间精力。
 大家的支持是项目得以延续的动力。
-支持原版请从上方英文链接捐助。
-支持码农哥加的功能，请点击以下链接或者扫码。
+支持码农哥加的功能，请点击以下链接(Sponsor)或者扫码。
+
+https://afdian.com/a/manong
 
 <a href="/Documentation/donation.jpg"><img src="/Documentation/donation.jpg?raw=true" alt="Donation" width="300"></a>
 
-https://afdian.net/a/manong
 ## How to Build
 ## 如何编译
 

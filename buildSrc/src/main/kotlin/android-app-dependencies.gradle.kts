@@ -10,7 +10,8 @@ android {
         versionCode = Versions.versionCode
         version = Versions.appVersion
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Removed after Dagger injection setup in instrumentation tests
+        //testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
@@ -25,6 +26,14 @@ android {
         named("debug") {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
+        }
+        buildTypes {
+            create("benchmark") {
+                initWith(buildTypes.getByName("release"))
+                signingConfig = signingConfigs.getByName("debug")
+                matchingFallbacks += listOf("release")
+                isDebuggable = false
+            }
         }
     }
 

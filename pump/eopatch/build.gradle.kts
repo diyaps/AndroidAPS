@@ -1,5 +1,5 @@
 plugins {
-    id("com.android.library")
+    alias(libs.plugins.android.library)
     id("kotlin-android")
     id("kotlin-kapt")
     id("android-module-dependencies")
@@ -8,27 +8,32 @@ plugins {
 }
 
 android {
-    namespace = "info.nightscout.androidaps.plugins.pump.eopatch"
+    namespace = "app.aaps.pump.eopatch"
     buildFeatures {
         dataBinding = true
     }
 }
 
 dependencies {
-    implementation(project(":pump:eopatch-core"))
-    implementation(project(":core:libraries"))
+    implementation(project(":core:data"))
     implementation(project(":core:interfaces"))
-    implementation(project(":core:main"))
+    implementation(project(":core:keys"))
+    implementation(project(":core:libraries"))
     implementation(project(":core:utils"))
     implementation(project(":core:ui"))
-    implementation(project(":database:entities"))
+    implementation(project(":pump:eopatch:core"))
+    implementation(project(":core:validators"))
 
-    api(Libs.Google.guava)
+    testImplementation(project(":shared:tests"))
+    testImplementation(project(":core:objects"))
+
+    api(libs.com.google.guava)
 
     //RxAndroidBle
-    api(Libs.rxandroidBle)
-    api(Libs.rx3ReplayingShare)
+    api(libs.io.reactivex.rxjava3.rxandroid)
+    api(libs.com.polidea.rxandroidble3)
+    api(libs.com.jakewharton.rx3.replaying.share)
 
-    kapt(Libs.Dagger.compiler)
-    kapt(Libs.Dagger.androidProcessor)
+    kapt(libs.com.google.dagger.compiler)
+    kapt(libs.com.google.dagger.android.processor)
 }

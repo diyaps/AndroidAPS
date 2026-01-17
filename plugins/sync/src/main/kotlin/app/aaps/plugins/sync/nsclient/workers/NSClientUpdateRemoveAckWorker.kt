@@ -6,6 +6,7 @@ import androidx.work.workDataOf
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventNSClientNewLog
+import app.aaps.core.interfaces.sync.DataSyncSelector
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairBolus
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairBolusCalculatorResult
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairCarbs
@@ -13,12 +14,11 @@ import app.aaps.core.interfaces.sync.DataSyncSelector.PairEffectiveProfileSwitch
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairExtendedBolus
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairFood
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairGlucoseValue
-import app.aaps.core.interfaces.sync.DataSyncSelector.PairOfflineEvent
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairProfileSwitch
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairTemporaryBasal
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairTemporaryTarget
 import app.aaps.core.interfaces.sync.DataSyncSelector.PairTherapyEvent
-import app.aaps.core.main.utils.worker.LoggingWorker
+import app.aaps.core.objects.workflow.LoggingWorker
 import app.aaps.core.utils.notifyAll
 import app.aaps.core.utils.receivers.DataWorkerStorage
 import app.aaps.plugins.sync.nsclient.acks.NSUpdateAck
@@ -119,10 +119,10 @@ class NSClientUpdateRemoveAckWorker(
                 ret = Result.success(workDataOf("ProcessedData" to pair.toString()))
             }
 
-            is PairOfflineEvent           -> {
+            is DataSyncSelector.PairRunningMode           -> {
                 val pair = ack.originalObject
                 pair.confirmed = true
-                rxBus.send(EventNSClientNewLog("◄ DBUPDATE", "Acked OfflineEvent" + ack._id))
+                rxBus.send(EventNSClientNewLog("◄ DBUPDATE", "Acked RunningMode" + ack._id))
                 ret = Result.success(workDataOf("ProcessedData" to pair.toString()))
             }
         }

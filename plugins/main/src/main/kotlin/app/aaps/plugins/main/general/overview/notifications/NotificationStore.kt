@@ -18,13 +18,15 @@ import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.notifications.NotificationHolder
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.resources.ResourceHelper
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.ui.IconsProvider
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.plugins.main.R
 import app.aaps.plugins.main.databinding.OverviewNotificationItemBinding
 import app.aaps.plugins.main.general.overview.notifications.events.EventUpdateOverviewNotification
+import app.aaps.plugins.main.general.overview.notifications.receivers.DismissNotificationReceiver
 import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,7 +34,7 @@ import javax.inject.Singleton
 @Singleton
 class NotificationStore @Inject constructor(
     private val aapsLogger: AAPSLogger,
-    private val sp: SP,
+    private val preferences: Preferences,
     private val rh: ResourceHelper,
     private val context: Context,
     private val iconsProvider: IconsProvider,
@@ -67,7 +69,7 @@ class NotificationStore @Inject constructor(
             }
         }
         store.add(n)
-        if (sp.getBoolean(app.aaps.core.ui.R.string.key_raise_notifications_as_android_notifications, true) && n !is NotificationWithAction)
+        if (preferences.get(BooleanKey.AlertUrgentAsAndroidNotification) && n !is NotificationWithAction)
             raiseSystemNotification(n)
         if (n.soundId != null && n.soundId != 0) uiInteraction.startAlarm(n.soundId!!, n.text)
         Collections.sort(store, NotificationComparator())
@@ -98,6 +100,12 @@ class NotificationStore @Inject constructor(
                 store.removeAt(i)
                 i--
             }
+            if (n is NotificationWithAction) {
+                if (n.validityCheck?.invoke() == false) {
+                    store.removeAt(i)
+                    i--
+                }
+            }
             i++
         }
     }
@@ -127,9 +135,8 @@ class NotificationStore @Inject constructor(
     }
 
     private fun deleteIntent(id: Int): PendingIntent {
-        val intent = Intent(context, DismissNotificationService::class.java)
-        intent.putExtra("alertID", id)
-        return PendingIntent.getService(context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val intent = Intent(DismissNotificationReceiver.ACTION).putExtra("alertID", id)
+        return PendingIntent.getBroadcast(context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     fun createNotificationChannel() {

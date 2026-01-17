@@ -8,25 +8,27 @@ plugins {
 
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation(Libs.JUnit.jupiter)
-    testImplementation(Libs.JUnit.jupiterApi)
-    testImplementation(Libs.json)
-    testImplementation(Libs.Mockito.jupiter)
-    testImplementation(Libs.Mockito.kotlin)
-    testImplementation(Libs.jodaTime)
-    testImplementation(Libs.Google.truth)
-    testImplementation(Libs.jsonAssert)
+    testImplementationFromCatalog("org-junit-jupiter")
+    testImplementationFromCatalog("org-junit-jupiter-api")
+    testImplementationFromCatalog("org-mockito-junit-jupiter")
+    testImplementationFromCatalog("org-mockito-kotlin")
+    testImplementationFromCatalog("joda-time")
+    testImplementationFromCatalog("com-google-truth")
+    testImplementationFromCatalog("org-skyscreamer-jsonassert")
 
-    androidTestImplementation(Libs.AndroidX.Test.espressoCore)
-    androidTestImplementation(Libs.AndroidX.Test.extKtx)
-    androidTestImplementation(Libs.AndroidX.Test.rules)
-    androidTestImplementation(Libs.Google.truth)
-    androidTestImplementation(Libs.AndroidX.Test.uiAutomator)
+    androidTestImplementationFromCatalog("androidx-espresso-core")
+    androidTestImplementationFromCatalog("androidx-test-ext")
+    androidTestImplementationFromCatalog("androidx-test-rules")
+    androidTestImplementationFromCatalog("com-google-truth")
+    androidTestImplementationFromCatalog("androidx-uiautomator")
+    androidTestImplementationFromCatalog("org-mockito-android")
+    androidTestImplementationFromCatalog("org-mockito-kotlin")
 }
 
 tasks.withType<Test> {
     // use to display stdout in travis
     testLogging {
+        testLogging.showStandardStreams = true
         // set options for log level LIFECYCLE
         events = setOf(
             TestLogEvent.FAILED,
@@ -40,8 +42,8 @@ tasks.withType<Test> {
 }
 
 tasks.withType<Test>().configureEach {
+    failOnNoDiscoveredTests = false
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
-    forkEvery = 20
 }
 
 android {

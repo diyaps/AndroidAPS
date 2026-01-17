@@ -1,27 +1,27 @@
 package app.aaps.plugins.constraints.bgQualityCheck
 
+import app.aaps.core.data.iob.InMemoryGlucoseValue
+import app.aaps.core.data.model.GV
+import app.aaps.core.data.model.SourceSensor
+import app.aaps.core.data.model.TrendArrow
+import app.aaps.core.data.time.T
 import app.aaps.core.interfaces.aps.AutosensDataStore
 import app.aaps.core.interfaces.bgQualityCheck.BgQualityCheck
-import app.aaps.core.interfaces.iob.InMemoryGlucoseValue
 import app.aaps.core.interfaces.iob.IobCobCalculator
-import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.T
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
-import app.aaps.core.main.constraints.ConstraintObject
-import app.aaps.database.entities.GlucoseValue
+import app.aaps.core.objects.constraints.ConstraintObject
+import app.aaps.core.objects.extensions.fromGv
 import app.aaps.plugins.constraints.R
 import app.aaps.shared.tests.TestBase
 import com.google.common.truth.Truth.assertThat
-import dagger.android.AndroidInjector
-import dagger.android.HasAndroidInjector
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
-import org.mockito.Mockito.anyInt
-import org.mockito.Mockito.`when`
+import org.mockito.kotlin.whenever
 
 class BgQualityCheckPluginTest : TestBase() {
 
@@ -30,526 +30,514 @@ class BgQualityCheckPluginTest : TestBase() {
     @Mock lateinit var fabricPrivacy: FabricPrivacy
     @Mock lateinit var dateUtil: DateUtil
     @Mock lateinit var autosensDataStore: AutosensDataStore
-    @Mock lateinit var activePlugin: ActivePlugin
 
     private lateinit var plugin: BgQualityCheckPlugin
 
-    private val injector = HasAndroidInjector { AndroidInjector { } }
     private val now = 100000000L
     //private val autosensDataStore = AutosensDataStoreObject()
 
     @BeforeEach
     fun mock() {
         plugin =
-            BgQualityCheckPlugin(
-                injector,
-                aapsLogger,
-                rh,
-                rxBus,
-                iobCobCalculator,
-                aapsSchedulers,
-                fabricPrivacy,
-                dateUtil,
-                activePlugin
-            )
-        `when`(iobCobCalculator.ads).thenReturn(autosensDataStore)
-        `when`(rh.gs(anyInt())).thenReturn("")
-        `when`(rh.gs(anyInt(), any(), any())).thenReturn("")
-        `when`(dateUtil.now()).thenReturn(now)
+            BgQualityCheckPlugin(aapsLogger, rh, rxBus, iobCobCalculator, aapsSchedulers, fabricPrivacy, dateUtil)
+        whenever(iobCobCalculator.ads).thenReturn(autosensDataStore)
+        whenever(rh.gs(anyInt())).thenReturn("")
+        whenever(rh.gs(anyInt(), any(), any())).thenReturn("")
+        whenever(dateUtil.now()).thenReturn(now)
     }
 
     @Test
     fun runTest() {
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(null)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(null)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.UNKNOWN)
         assertThat(plugin.icon()).isEqualTo(0)
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(true)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(true)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.FIVE_MIN_DATA)
         assertThat(plugin.icon()).isEqualTo(0)
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(false)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(false)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.RECALCULATED)
         assertThat(plugin.icon()).isEqualTo(R.drawable.ic_baseline_warning_24_yellow)
 
-        val superData: MutableList<GlucoseValue> = ArrayList()
+        val superData: MutableList<GV> = ArrayList()
         superData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         superData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(15).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         superData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(10).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         superData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(5).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
-        `when`(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(superData)
+        whenever(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(superData)
 
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(true)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(true)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.FIVE_MIN_DATA)
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(false)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(false)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.RECALCULATED)
 
-        val duplicatedData: MutableList<GlucoseValue> = ArrayList()
+        val duplicatedData: MutableList<GV> = ArrayList()
         duplicatedData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         duplicatedData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(20).msecs() + 1,
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         duplicatedData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(10).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         duplicatedData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(15).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         duplicatedData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(5).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
-        `when`(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(duplicatedData)
+        whenever(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(duplicatedData)
 
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(true)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(true)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.DOUBLED)
         assertThat(plugin.icon()).isEqualTo(R.drawable.ic_baseline_warning_24_red)
 
-        val identicalData: MutableList<GlucoseValue> = ArrayList()
+        val identicalData: MutableList<GV> = ArrayList()
         identicalData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         identicalData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         identicalData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(10).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         identicalData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(15).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         identicalData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = T.mins(5).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
-        `when`(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(identicalData)
+        whenever(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(identicalData)
 
-        `when`(autosensDataStore.lastUsed5minCalculation).thenReturn(false)
+        whenever(autosensDataStore.lastUsed5minCalculation).thenReturn(false)
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.DOUBLED)
 
         // Flat data Libre
-        val flatData: MutableList<GlucoseValue> = ArrayList()
+        val flatData: MutableList<GV> = ArrayList()
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(0).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-5).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 101.0,
                 timestamp = now + T.mins(-10).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-15).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-25).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 99.0,
                 timestamp = now + T.mins(-30).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-35).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-40).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-45).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
-        `when`(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(flatData)
-        `when`(iobCobCalculator.ads.lastBg()).thenReturn(InMemoryGlucoseValue(flatData[0]))
+        whenever(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(flatData)
+        whenever(iobCobCalculator.ads.lastBg()).thenReturn(InMemoryGlucoseValue.fromGv(flatData[0]))
 
         plugin.processBgData()
         assertThat(plugin.state).isEqualTo(BgQualityCheck.State.FLAT)
         assertThat(plugin.icon()).isEqualTo(R.drawable.ic_baseline_trending_flat_24)
 
         // Flat data Libre
-        val flatDataDexcom: MutableList<GlucoseValue> = ArrayList()
+        val flatDataDexcom: MutableList<GV> = ArrayList()
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(0).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-5).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 101.0,
                 timestamp = now + T.mins(-10).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-15).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-25).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 99.0,
                 timestamp = now + T.mins(-30).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-35).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-40).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatDataDexcom.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-45).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G6_NATIVE,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+                trendArrow = TrendArrow.FLAT
             )
         )
-        `when`(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(flatDataDexcom)
-        `when`(iobCobCalculator.ads.lastBg()).thenReturn(InMemoryGlucoseValue(flatDataDexcom[0]))
+        whenever(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(flatDataDexcom)
+        whenever(iobCobCalculator.ads.lastBg()).thenReturn(InMemoryGlucoseValue.fromGv(flatDataDexcom[0]))
 
         plugin.processBgData()
         assertThat(plugin.state).isNotEqualTo(BgQualityCheck.State.FLAT)
         assertThat(plugin.icon()).isNotEqualTo(R.drawable.ic_baseline_trending_flat_24)
 
         // not enough data
-        val incompleteData: MutableList<GlucoseValue> = ArrayList()
+        val incompleteData: MutableList<GV> = ArrayList()
         incompleteData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(0).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         incompleteData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-5).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
-        `when`(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(incompleteData)
-        `when`(iobCobCalculator.ads.lastBg()).thenReturn(InMemoryGlucoseValue(incompleteData[0]))
+        whenever(autosensDataStore.getBgReadingsDataTableCopy()).thenReturn(incompleteData)
+        whenever(iobCobCalculator.ads.lastBg()).thenReturn(InMemoryGlucoseValue.fromGv(incompleteData[0]))
         plugin.processBgData()// must be more than 5 values
         assertThat(plugin.state).isNotEqualTo(BgQualityCheck.State.FLAT)
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 101.0,
                 timestamp = now + T.mins(-10).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-15).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-20).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-25).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 99.0,
                 timestamp = now + T.mins(-30).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-35).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         flatData.add(
-            GlucoseValue(
+            GV(
                 raw = 0.0,
                 noise = 0.0,
                 value = 100.0,
                 timestamp = now + T.mins(-40).msecs(),
-                sourceSensor = GlucoseValue.SourceSensor.LIBRE_1_OTHER,
-                trendArrow = GlucoseValue.TrendArrow.FLAT
+                sourceSensor = SourceSensor.LIBRE_1_OTHER,
+                trendArrow = TrendArrow.FLAT
             )
         )
         plugin.processBgData() // must be at least 45 min old

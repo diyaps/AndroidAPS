@@ -1,16 +1,16 @@
 package app.aaps.plugins.automation
 
 import android.content.Context
+import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.interfaces.aps.Loop
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
-import app.aaps.core.interfaces.db.GlucoseUnit
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.resources.ResourceHelper
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.plugins.automation.services.LocationServiceHelper
 import app.aaps.plugins.automation.triggers.Trigger
 import app.aaps.plugins.automation.ui.TimerUtil
@@ -23,13 +23,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
-import org.mockito.Mockito
+import org.mockito.kotlin.whenever
 
 class BolusTimerImplTest : TestBase() {
 
     @Mock lateinit var rh: ResourceHelper
     @Mock lateinit var context: Context
-    @Mock lateinit var sp: SP
     @Mock lateinit var fabricPrivacy: FabricPrivacy
     @Mock lateinit var loop: Loop
     @Mock lateinit var constraintChecker: ConstraintsChecker
@@ -38,6 +37,7 @@ class BolusTimerImplTest : TestBase() {
     @Mock lateinit var activePlugin: ActivePlugin
     @Mock lateinit var profileFunction: ProfileFunction
     @Mock lateinit var timerUtil: TimerUtil
+    @Mock lateinit var preferences: Preferences
 
     private val injector = HasAndroidInjector {
         AndroidInjector {
@@ -52,11 +52,11 @@ class BolusTimerImplTest : TestBase() {
 
     @BeforeEach
     fun init() {
-        Mockito.`when`(rh.gs(anyInt())).thenReturn("")
-        Mockito.`when`(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
+        whenever(rh.gs(anyInt())).thenReturn("")
+        whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
         dateUtil = DateUtilImpl(context)
         automationPlugin = AutomationPlugin(
-            injector, rh, context, sp, fabricPrivacy, loop, rxBus, constraintChecker, aapsLogger, aapsSchedulers, config, locationServiceHelper, dateUtil,
+            injector, aapsLogger, rh, preferences, context, fabricPrivacy, loop, rxBus, constraintChecker, aapsSchedulers, config, locationServiceHelper, dateUtil,
             activePlugin, timerUtil
         )
     }

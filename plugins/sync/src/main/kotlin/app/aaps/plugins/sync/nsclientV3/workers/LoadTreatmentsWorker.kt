@@ -9,9 +9,9 @@ import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventNSClientNewLog
 import app.aaps.core.interfaces.sync.NsClient
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.main.utils.worker.LoggingWorker
 import app.aaps.core.nssdk.interfaces.NSAndroidClient
 import app.aaps.core.nssdk.localmodel.treatment.NSTreatment
+import app.aaps.core.objects.workflow.LoggingWorker
 import app.aaps.plugins.sync.nsShared.NsIncomingDataProcessor
 import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
 import kotlinx.coroutines.Dispatchers
@@ -58,8 +58,8 @@ class LoadTreatmentsWorker(
                         val action = if (isFirstLoad) "RCV-F" else "RCV"
                         rxBus.send(EventNSClientNewLog("◄ $action", "${treatments.size} TRs from ${dateUtil.dateAndTimeAndSecondsString(lastLoaded)}"))
                         // Schedule processing of fetched data and continue of loading
-                        continueLoading = response.code != 304
-                        nsIncomingDataProcessor.processTreatments(response.values)
+                        continueLoading =
+                            response.code != 304 && nsIncomingDataProcessor.processTreatments(response.values, nsClientV3Plugin.doingFullSync)
                     } else {
                         // End first load
                         if (isFirstLoad) {
@@ -86,7 +86,7 @@ class LoadTreatmentsWorker(
             return Result.failure(workDataOf("Error" to error.localizedMessage))
         }
 
-        storeDataForDb.storeTreatmentsToDb()
+        storeDataForDb.storeTreatmentsToDb(fullSync = nsClientV3Plugin.doingFullSync)
         nsClientV3Plugin.lastOperationError = null
         return Result.success()
     }

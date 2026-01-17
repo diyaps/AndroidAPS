@@ -20,7 +20,7 @@
     <!--     Activities-->
     <string name="activity_monitor">Activity monitor</string>
     <string name="do_you_want_reset_stats">Do you want to reset activity stats?</string>
-    <string name="do_you_want_reset_tdd_stats">Do you want to reset TDD stats?</string>
+    <string name="do_you_want_recalculate_tdd_stats">Do you want to recalculate TDD stats?</string>
     <string name="statistics">Statistics</string>
     <string name="calculation_in_progress">Calculation in progress</string>
     <string name="invalid_age">Invalid age entry</string>
@@ -43,6 +43,24 @@
     <string name="format_cob_ic">%1$.1fg IC: %2$.1f</string>
     <string name="format_carbs_ic">%1$.0fg IC: %2$.1f</string>
     <string name="treatments_wizard_total_label">Total</string>
+
+    <!-- SiteRotationDialog -->
+    <string name="site_front">Front</string>
+    <string name="site_back">Back</string>
+    <string name="site_man">Man</string>
+    <string name="site_woman">Woman</string>
+    <string name="site_child">Child</string>
+    <string name="user_profile">User Profile</string>
+    <string name="user_profile_description">User Profile Description is used to show most frequent sites available for a man, a woman or a child</string>
+    <string name="site_management">Site Management Profile</string>
+    <string name="site_management_description">You will set here if you want to manage Pump site, CGM site or both. This setting will be used to automatically send the site management dialog on each detected new entry</string>
+    <string name="select_site">Click below to select Site</string>
+    <string name="record_site_change">Record Site Location</string>
+    <string name="edit_site">Edit</string>
+    <string name="record_site_location">Site Location: %1$s</string>
+    <string name="record_site_arrow">Site Arrow: %1$s</string>
+    <string name="record_site_note">Note: %1$s</string>
+    <string name="delete_site_note">Note deleted</string>
 
     <!-- FillDialog -->
     <string name="fill_warning">Please make sure the amount matches the specification of your infusion set!</string>
@@ -78,11 +96,6 @@
     <string name="duration10h">10 hours</string>
 
     <!-- WizardDialog -->
-    <string name="key_wizard_calculation_visible" translatable="false">wizard_calculation_visible</string>
-    <string name="key_wizard_correction_percent" translatable="false">wizard_correction_percent</string>
-    <string name="key_wizard_include_cob" translatable="false">wizard_include_cob</string>
-    <string name="key_wizard_include_trend_bg" translatable="false">wizard_include_trend_bg</string>
-
     <string name="a11_correction_percentage">correct outcome with %</string>
     <string name="a11_correction_units">correct outcome with units</string>
     <string name="two_hours">2h</string>
@@ -97,24 +110,15 @@
     <string name="no_records_available">No records available</string>
     <string name="calculation_short">Calc</string>
     <string name="treatments_iob_label_string">IOB:</string>
-    <string name="treatments_insulin_label_string">Insulin:</string>
     <string name="treatments_carbs_label_string">Carbs:</string>
-    <string name="treatments_iobtotal_label_string">Total IOB:</string>
-    <string name="treatments_iob_activity_total_label_string">Total IOB activity:</string>
-    <string name="tempbasals_realduration_label_string">Dur:</string>
     <string name="tempbasals_netratio_label_string">Ratio:</string>
-    <string name="tempbasals_netinsulin_label_string">Ins:</string>
     <string name="tempbasals_iob_label_string">IOB:</string>
     <string name="treatments_wizard_correction_label">Corr</string>
     <string name="meal_bolus">Meal</string>
     <string name="prime">Prime</string>
-    <string name="profile_changes">Profile changes</string>
-    <string name="tempt_targets">Temp Targets</string>
     <string name="carbs_and_bolus">Carbs and bolus</string>
     <string name="show_invalidated_records">Show invalidated / removed records</string>
     <string name="hide_invalidated_records">Hide invalidated / removed records</string>
-    <string name="refresh_from_nightscout">Refresh from Nightscout</string>
-    <string name="refresheventsfromnightscout">Refresh from NS</string>
     <string name="show_invalidated">Show invalidated</string>
     <string name="hide_invalidated">Hide invalidated</string>
     <string name="careportal_remove_started_events">Remove AAPS started entries</string>
@@ -152,27 +156,29 @@
     <string name="a11y_only_on_watch">only on watch</string>
     <string name="a11y_only_on_phone">only on phone</string>
     <string name="quickwizard_settings">QuickWizard settings</string>
-    <string name="overview_edit_quickwizard_button_text">Button text:</string>
-    <string name="overview_edit_quickwizard_carbs">Carbs:</string>
+    <string name="overview_edit_quickwizard_button_text">Button text</string>
     <string name="overview_edit_quickwizard_valid">Valid:</string>
-    <string name="overview_edit_quickwizard_list_activity_add">Add</string>
-    <string name="overview_quickwizard_item_edit_button">Edit</string>
-    <string name="overview_edit_quickwizard_show_on_device">Show entry on device:</string>
-    <string name="overview_edit_quickwizard_use_bg">BG calculation</string>
-    <string name="overview_edit_quickwizard_use_bolus_iob">Bolus IOB calculation</string>
-    <string name="overview_edit_quickwizard_use_basal_iob">Basal IOB calculation</string>
-    <string name="overview_edit_quickwizard_use_trend">Trend calculation</string>
-    <string name="overview_edit_quickwizard_use_superbolus">Superbolus calculation</string>
-    <string name="overview_edit_quickwizard_percentage">Percentage</string>
-    <string name="device_all">All</string>
-    <string name="device_phone">Phone</string>
-    <string name="device_watch">Watch</string>
-    <string name="positive_only">Positive only</string>
-    <string name="negative_only">Negative only</string>
-    <string name="overview_editquickwizard_usecob">COB calculation</string>
-    <string name="overview_editquickwizard_usetemptarget">Temporary target calculation</string>
-    <string name="overview_editquickwizard_usepercentage">Percentage calculation</string>
-    <string name="app_default">Application default</string>
+    <string name="overview_edit_quickwizard_use_positive_iob_only">Positive IOB only</string>
+    <string name="overview_edit_quickwizard_superbolus">Superbolus</string>
+    <string name="overview_edit_quickwizard_percentage_too_high">Percentage too high!</string>
     <string name="a11y_drag_and_drop_handle">drag and drop handle</string>
+    <string name="additional_ecarbs">Add eCarbs</string>
+    <string name="overview_edit_quickwizard_useforcalculation">Use for calculation:</string>
+    <string name="constraints_violation">Constraints violation</string>
+    <string name="change_your_input">Change your input!</string>
+    <string name="confirm_treatment">Please confirm treatment</string>
+    <string name="recalculate">Recalculate</string>
+
+    <!--    Widget-->
+    <string name="use_black_color">Use black color</string>
+    <string name="widget_configuration">Widget configuration</string>
+    <string name="until_changed">Until changed</string>
+    <string name="limitations">Limitations</string>
+
+    <string-array name="yes_no_positiveonly_negativeonly">
+        <item>Both</item>
+        <item>Positive only</item>
+        <item>Negative only</item>
+    </string-array>
 
 </resources>

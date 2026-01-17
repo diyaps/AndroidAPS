@@ -4,7 +4,6 @@
     <string name="combov2_plugin_description">Εγγενής ενσωμάτωση αντλίας για τις αντλίες Accu-Chek Combo</string>
     <string name="combov2_could_not_connect">Αδυναμία σύνδεσης με την αντλία</string>
     <string name="combov2_not_paired">Δεν υπάρχει σύζευξη με μία αντλία</string>
-    <string name="combov2_pump_terminated_connection">Η σύνδεση με την αντλία τερματίστηκε</string>
     <string name="combov2_warning">Προειδοποίηση Combo</string>
     <string name="combov2_error">Σφάλμα Combo</string>
     <string name="combov2_warning_4">Καλέστε την hotline για ενημέρωση</string>
@@ -105,19 +104,9 @@
     <string name="combov2_unpair_pump_summary">Αποσύζευξη του AndroidAPS και του Android από την τρέχουσα συζευγμένη αντλία Accu-Chek Combo</string>
     <string name="combov2_unknown_tbr_detected">Άγνωστο TBR ανιχνεύθηκε και διακόπηκε: ποσοστό: %1$d%%; εναπομένουσα διάρκεια: %2$s</string>
     <string name="combov2_connection_error">Σφάλμα σύνδεσης: %1$s</string>
-    <string name="combov2_short_status_last_connection">Τελευταία Σύνδεση: %1$d λεπτά πριν</string>
     <string name="combov2_short_status_alert">Ειδοποίηση: %s</string>
-    <string name="combov2_short_status_last_bolus">Τελευταίο Bolus: %1$sU @ %2$s</string>
-    <string name="combov2_short_status_temp_basal">Προσωρινός Ρυθμός: %s</string>
-    <string name="combov2_short_status_reservoir">Δεξαμενή: %dU</string>
-    <string name="combov2_short_status_battery_state_empty">κενή</string>
-    <string name="combov2_short_status_battery_state_low">χαμηλό</string>
-    <string name="combov2_short_status_battery_state_full">πλήρης</string>
-    <string name="combov2_short_status_battery_state">Μπαταρία.:%s</string>
     <string name="combov2_automatic_reservoir_entry">Αυτόματη ανίχνευση και αυτόματη εισαγωγή αλλαγής δεξαμενής ινσουλίνης</string>
     <string name="combov2_automatic_battery_entry">Αυτόματη ανίχνευση και αυτόματη εισαγωγή αλλαγής μπαταρίας</string>
-    <string name="combov2_note_reservoir_change">Αλλαγή δεξαμενής ινσουλίνης εισήχθηκε αυτόματα από τον οδηγό combov2</string>
-    <string name="combov2_note_battery_change">Αλλαγή μπαταρίας εισήχθηκε αυτόματα από τον οδηγό combov2</string>
     <string name="combov2_timezone_changed">Η ζώνη ώρας άλλαξε</string>
     <string name="combov2_datetime_changed">Ημερομηνία ή/και ώρα άλλαξε</string>
     <string name="combov2_dst_started">Η θερινή ώρα (DST) ξεκίνησε</string>

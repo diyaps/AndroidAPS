@@ -16,26 +16,29 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.ui.getThemeColor
 import app.aaps.core.ui.locale.LocaleHelper
+import dagger.Reusable
 import java.util.Locale
 import javax.inject.Inject
 
 /**
  * Created by adrian on 2019-12-23.
  */
+@Reusable
 class ResourceHelperImpl @Inject constructor(var context: Context, private val fabricPrivacy: FabricPrivacy) : ResourceHelper {
 
     override fun gs(@StringRes id: Int): String =
-        context.createConfigurationContext(Configuration().apply { setLocale(LocaleHelper.currentLocale(context)) }).resources.getString(id)
+        context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(LocaleHelper.currentLocale(context)) }).resources.getString(id)
 
     override fun gs(@StringRes id: Int, vararg args: Any?): String {
         return try {
-            context.createConfigurationContext(Configuration().apply { setLocale(LocaleHelper.currentLocale(context)) }).resources.getString(id, *args)
+            context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(LocaleHelper.currentLocale(context)) }).resources.getString(id, *args)
         } catch (exception: Exception) {
             val resourceName = context.resources.getResourceEntryName(id)
             val resourceValue = context.getString(id)
@@ -63,7 +66,7 @@ class ResourceHelperImpl @Inject constructor(var context: Context, private val f
 
     override fun gc(@ColorRes id: Int): Int = ContextCompat.getColor(context, id)
 
-    override fun gd(@DrawableRes id: Int): Drawable? = context.getDrawable(id)
+    override fun gd(@DrawableRes id: Int): Drawable? = AppCompatResources.getDrawable(context, id)
 
     override fun gb(@BoolRes id: Int): Boolean = context.resources.getBoolean(id)
 

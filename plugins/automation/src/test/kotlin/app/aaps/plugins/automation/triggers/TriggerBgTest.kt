@@ -1,27 +1,27 @@
 package app.aaps.plugins.automation.triggers
 
-import app.aaps.core.interfaces.db.GlucoseUnit
-import app.aaps.core.interfaces.iob.InMemoryGlucoseValue
-import app.aaps.database.entities.GlucoseValue
+import app.aaps.core.data.iob.InMemoryGlucoseValue
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.SourceSensor
+import app.aaps.core.data.model.TrendArrow
 import app.aaps.plugins.automation.elements.Comparator
 import com.google.common.truth.Truth.assertThat
 import org.json.JSONObject
-import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.`when`
+import org.mockito.kotlin.whenever
 import org.skyscreamer.jsonassert.JSONAssert
 
 class TriggerBgTest : TriggerTestBase() {
 
     @BeforeEach
     fun prepare() {
-        `when`(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
+        whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
     }
 
     @Test
     fun shouldRunTest() {
-        `when`(autosensDataStore.getBucketedDataTableCopy()).thenReturn(generateOneCurrentRecordBgData())
+        whenever(autosensDataStore.getBucketedDataTableCopy()).thenReturn(generateOneCurrentRecordBgData())
         var t: TriggerBg = TriggerBg(injector).setUnits(GlucoseUnit.MMOL).setValue(4.1).comparator(Comparator.Compare.IS_EQUAL)
         assertThat(t.shouldRun()).isFalse()
         t = TriggerBg(injector).setUnits(GlucoseUnit.MGDL).setValue(214.0).comparator(Comparator.Compare.IS_EQUAL)
@@ -40,7 +40,7 @@ class TriggerBgTest : TriggerTestBase() {
         assertThat(t.shouldRun()).isTrue()
         t = TriggerBg(injector).setUnits(GlucoseUnit.MGDL).setValue(213.0).comparator(Comparator.Compare.IS_EQUAL_OR_LESSER)
         assertThat(t.shouldRun()).isFalse()
-        `when`(autosensDataStore.getBucketedDataTableCopy()).thenReturn(ArrayList())
+        whenever(autosensDataStore.getBucketedDataTableCopy()).thenReturn(ArrayList())
         t = TriggerBg(injector).setUnits(GlucoseUnit.MGDL).setValue(213.0).comparator(Comparator.Compare.IS_EQUAL_OR_LESSER)
         assertThat(t.shouldRun()).isFalse()
         t = TriggerBg(injector).comparator(Comparator.Compare.IS_NOT_AVAILABLE)
@@ -75,12 +75,12 @@ class TriggerBgTest : TriggerTestBase() {
 
     @Test
     fun iconTest() {
-        assertThat(TriggerBg(injector).icon().get()).isEqualTo(app.aaps.core.main.R.drawable.ic_cp_bgcheck)
+        assertThat(TriggerBg(injector).icon().get()).isEqualTo(app.aaps.core.objects.R.drawable.ic_cp_bgcheck)
     }
 
     private fun generateOneCurrentRecordBgData(): MutableList<InMemoryGlucoseValue> {
         val list: MutableList<InMemoryGlucoseValue> = ArrayList()
-        list.add(InMemoryGlucoseValue(value = 214.0, timestamp = now - 1, trendArrow = GlucoseValue.TrendArrow.FLAT, sourceSensor = GlucoseValue.SourceSensor.UNKNOWN))
+        list.add(InMemoryGlucoseValue(value = 214.0, timestamp = now - 1, trendArrow = TrendArrow.FLAT, sourceSensor = SourceSensor.UNKNOWN))
         return list
     }
 }

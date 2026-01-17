@@ -11,11 +11,13 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.StringRes
-import app.aaps.core.interfaces.extensions.runOnUiThread
+import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.protection.PasswordCheck
-import app.aaps.core.interfaces.sharedPreferences.SP
-import app.aaps.core.main.R
-import app.aaps.core.main.utils.CryptoUtil
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.StringPreferenceKey
+import app.aaps.core.objects.R
+import app.aaps.core.objects.crypto.CryptoUtil
+import app.aaps.core.ui.extensions.runOnUiThread
 import app.aaps.core.ui.toast.ToastUtils
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.Reusable
@@ -23,7 +25,7 @@ import javax.inject.Inject
 
 @Reusable
 class PasswordCheckImpl @Inject constructor(
-    private val sp: SP,
+    private val preferences: Preferences,
     private val cryptoUtil: CryptoUtil
 ) : PasswordCheck {
 
@@ -31,12 +33,14 @@ class PasswordCheckImpl @Inject constructor(
     @Suppress("PrivatePropertyName")
     private val AUTOFILL_HINT_NEW_PASSWORD = "newPassword"
 
+    @Inject lateinit var exportPasswordDataStore: ExportPasswordDataStore
+
     /**
     Asks for "managed" kind of password, checking if it is valid.
      */
     @SuppressLint("InflateParams")
-    override fun queryPassword(context: Context, @StringRes labelId: Int, @StringRes preference: Int, ok: ((String) -> Unit)?, cancel: (() -> Unit)?, fail: (() -> Unit)?, pinInput: Boolean) {
-        val password = sp.getString(preference, "")
+    override fun queryPassword(context: Context, @StringRes labelId: Int, preference: StringPreferenceKey, ok: ((String) -> Unit)?, cancel: (() -> Unit)?, fail: (() -> Unit)?, pinInput: Boolean) {
+        val password = preferences.get(preference)
         if (password == "") {
             ok?.invoke("")
             return
@@ -53,8 +57,7 @@ class PasswordCheckImpl @Inject constructor(
             userInput.setHint(app.aaps.core.ui.R.string.pin_hint)
             userInput.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
         }
-        val autoFillHintPasswordKind = context.getString(preference)
-        userInput.setAutofillHints(View.AUTOFILL_HINT_PASSWORD, "aaps_${autoFillHintPasswordKind}")
+        userInput.setAutofillHints(View.AUTOFILL_HINT_PASSWORD, "aaps_${preference}")
         userInput.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
 
         fun validatePassword(): Boolean {
@@ -97,7 +100,7 @@ class PasswordCheckImpl @Inject constructor(
     }
 
     @SuppressLint("InflateParams")
-    override fun setPassword(context: Context, @StringRes labelId: Int, @StringRes preference: Int, ok: ((String) -> Unit)?, cancel: (() -> Unit)?, clear: (() -> Unit)?, pinInput: Boolean) {
+    override fun setPassword(context: Context, @StringRes labelId: Int, preference: StringPreferenceKey, ok: ((String) -> Unit)?, cancel: (() -> Unit)?, clear: (() -> Unit)?, pinInput: Boolean) {
         val promptsView = LayoutInflater.from(context).inflate(R.layout.passwordprompt, null)
         val alertDialogBuilder = MaterialAlertDialogBuilder(context, app.aaps.core.ui.R.style.DialogTheme)
         alertDialogBuilder.setView(promptsView)
@@ -110,8 +113,7 @@ class PasswordCheckImpl @Inject constructor(
             userInput.setHint(app.aaps.core.ui.R.string.pin_hint)
             userInput2.setHint(app.aaps.core.ui.R.string.pin_hint)
         }
-        val autoFillHintPasswordKind = context.getString(preference)
-        userInput.setAutofillHints(AUTOFILL_HINT_NEW_PASSWORD, "aaps_${autoFillHintPasswordKind}")
+        userInput.setAutofillHints(AUTOFILL_HINT_NEW_PASSWORD, "aaps_${preference}")
         userInput.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
 
         alertDialogBuilder
@@ -124,13 +126,14 @@ class PasswordCheckImpl @Inject constructor(
                     val msg = if (pinInput) app.aaps.core.ui.R.string.pin_dont_match else app.aaps.core.ui.R.string.passwords_dont_match
                     ToastUtils.errorToast(context, context.getString(msg))
                 } else if (enteredPassword.isNotEmpty()) {
-                    sp.putString(preference, cryptoUtil.hashPassword(enteredPassword))
+                    preferences.put(preference, cryptoUtil.hashPassword(enteredPassword))
+                    exportPasswordDataStore.clearPasswordDataStore(context)
                     val msg = if (pinInput) app.aaps.core.ui.R.string.pin_set else app.aaps.core.ui.R.string.password_set
                     ToastUtils.okToast(context, context.getString(msg))
                     ok?.invoke(enteredPassword)
                 } else {
-                    if (sp.contains(preference)) {
-                        sp.remove(preference)
+                    if (preferences.getIfExists(preference) != null) {
+                        preferences.remove(preference)
                         val msg = if (pinInput) app.aaps.core.ui.R.string.pin_cleared else app.aaps.core.ui.R.string.password_cleared
                         ToastUtils.graphicalToast(context, context.getString(msg), app.aaps.core.ui.R.drawable.ic_toast_delete_confirm)
                         clear?.invoke()
@@ -161,7 +164,7 @@ class PasswordCheckImpl @Inject constructor(
      */
     @SuppressLint("InflateParams")
     override fun queryAnyPassword(
-        context: Context, @StringRes labelId: Int, @StringRes preference: Int, @StringRes passwordExplanation: Int?,
+        context: Context, @StringRes labelId: Int, preference: StringPreferenceKey, @StringRes passwordExplanation: Int?,
         @StringRes passwordWarning: Int?, ok: ((String) -> Unit)?, cancel: (() -> Unit)?
     ) {
 
@@ -171,7 +174,7 @@ class PasswordCheckImpl @Inject constructor(
         passwordExplanation?.let { alertDialogBuilder.setMessage(it) }
 
         passwordWarning?.let {
-            val extraWarning: TextView = promptsView.findViewById<View>(R.id.password_prompt_extra_message) as TextView
+            val extraWarning: TextView = promptsView.findViewById<TextView>(R.id.password_prompt_extra_message)
             extraWarning.text = context.getString(it)
             extraWarning.visibility = View.VISIBLE
         }
@@ -181,8 +184,7 @@ class PasswordCheckImpl @Inject constructor(
 
         userInput2.visibility = View.GONE
 
-        val autoFillHintPasswordKind = context.getString(preference)
-        userInput.setAutofillHints(View.AUTOFILL_HINT_PASSWORD, "aaps_${autoFillHintPasswordKind}")
+        userInput.setAutofillHints(View.AUTOFILL_HINT_PASSWORD, "aaps_${preference.key}")
         userInput.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
 
         fun validatePassword() {
@@ -216,4 +218,5 @@ class PasswordCheckImpl @Inject constructor(
             }
         }
     }
+
 }

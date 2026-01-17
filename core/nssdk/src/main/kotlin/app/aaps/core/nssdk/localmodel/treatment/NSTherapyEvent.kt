@@ -1,7 +1,7 @@
 package app.aaps.core.nssdk.localmodel.treatment
 
-import com.google.gson.annotations.SerializedName
 import app.aaps.core.nssdk.localmodel.entry.NsUnits
+import com.google.gson.annotations.SerializedName
 
 data class NSTherapyEvent(
     override var date: Long?,
@@ -21,6 +21,9 @@ data class NSTherapyEvent(
     override val pumpType: String?,
     override val pumpSerial: String?,
     override var app: String? = null,
+    /** Duration in milliseconds */
+    var location: String? = null,
+    var arrow: String? = null,
     val duration: Long,
     var enteredBy: String? = null,
     var glucose: Double? = null,
@@ -35,7 +38,7 @@ data class NSTherapyEvent(
 
         companion object {
 
-            fun fromString(text: String?) = values().firstOrNull { it.text == text }
+            fun fromString(text: String?) = MeterType.entries.firstOrNull { it.text == text }
         }
     }
 }

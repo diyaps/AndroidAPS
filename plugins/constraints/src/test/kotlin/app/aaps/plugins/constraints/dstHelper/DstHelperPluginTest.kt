@@ -1,14 +1,9 @@
 package app.aaps.plugins.constraints.dstHelper
 
 import app.aaps.core.interfaces.aps.Loop
-import app.aaps.core.interfaces.plugin.ActivePlugin
-import app.aaps.core.interfaces.resources.ResourceHelper
-import app.aaps.core.interfaces.sharedPreferences.SP
-import app.aaps.plugins.constraints.dstHelper.DstHelperPlugin
-import app.aaps.shared.tests.TestBase
+import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.shared.tests.TestBaseWithProfile
 import com.google.common.truth.Truth.assertThat
-import dagger.android.AndroidInjector
-import dagger.android.HasAndroidInjector
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mock
@@ -18,20 +13,16 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-class DstHelperPluginTest : TestBase() {
+class DstHelperPluginTest : TestBaseWithProfile() {
 
-    @Mock lateinit var rh: ResourceHelper
-    @Mock lateinit var sp: SP
-    @Mock lateinit var activePlugin: ActivePlugin
     @Mock lateinit var loop: Loop
+    @Mock lateinit var uiInteraction: UiInteraction
 
     private lateinit var plugin: DstHelperPlugin
 
-    private val injector = HasAndroidInjector { AndroidInjector { } }
-
     @BeforeEach
     fun mock() {
-        plugin = DstHelperPlugin(injector, aapsLogger, rh, sp, activePlugin, loop)
+        plugin = DstHelperPlugin(aapsLogger, rh, preferences, activePlugin, uiInteraction, loop, profileFunction)
     }
 
     @Test

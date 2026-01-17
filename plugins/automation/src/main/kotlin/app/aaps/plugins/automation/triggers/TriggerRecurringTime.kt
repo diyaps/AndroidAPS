@@ -23,7 +23,7 @@ class TriggerRecurringTime(injector: HasAndroidInjector) : Trigger(injector) {
     val time = InputTime(rh, dateUtil)
 
     constructor(injector: HasAndroidInjector, triggerRecurringTime: TriggerRecurringTime) : this(injector) {
-        this.time.value = triggerRecurringTime.time.value
+        time.value = triggerRecurringTime.time.value
         if (days.weekdays.size >= 0)
             System.arraycopy(triggerRecurringTime.days.weekdays, 0, days.weekdays, 0, triggerRecurringTime.days.weekdays.size)
     }
@@ -50,7 +50,7 @@ class TriggerRecurringTime(injector: HasAndroidInjector) : Trigger(injector) {
         val data = JSONObject()
             .put("time", time.value)
         for (i in days.weekdays.indices) {
-            data.put(WeekDay.DayOfWeek.values()[i].name, days.weekdays[i])
+            data.put(WeekDay.DayOfWeek.entries[i].name, days.weekdays[i])
         }
         return data
     }
@@ -58,7 +58,7 @@ class TriggerRecurringTime(injector: HasAndroidInjector) : Trigger(injector) {
     override fun fromJSON(data: String): Trigger {
         val o = JSONObject(data)
         for (i in days.weekdays.indices)
-            days.weekdays[i] = JsonHelper.safeGetBoolean(o, WeekDay.DayOfWeek.values()[i].name)
+            days.weekdays[i] = JsonHelper.safeGetBoolean(o, WeekDay.DayOfWeek.entries[i].name)
         if (o.has("hour")) {
             // do conversion from 2.5.1 format
             val hour = JsonHelper.safeGetInt(o, "hour")
@@ -86,11 +86,11 @@ class TriggerRecurringTime(injector: HasAndroidInjector) : Trigger(injector) {
         return if (counter == 0) rh.gs(R.string.never) else sb.toString()
     }
 
-    override fun icon(): Optional<Int> = Optional.of(app.aaps.core.main.R.drawable.ic_access_alarm_24dp)
+    override fun icon(): Optional<Int> = Optional.of(app.aaps.core.objects.R.drawable.ic_access_alarm_24dp)
 
     override fun duplicate(): Trigger = TriggerRecurringTime(injector, this)
 
-    private fun toMills(minutesSinceMidnight: Int): Long = MidnightTime.calcPlusMinutes(minutesSinceMidnight)
+    private fun toMills(minutesSinceMidnight: Int): Long = MidnightTime.calcMidnightPlusMinutes(minutesSinceMidnight)
 
     private fun getMinSinceMidnight(time: Long): Int = MidnightUtils.secondsFromMidnight(time) / 60
 

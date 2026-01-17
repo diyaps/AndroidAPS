@@ -14,16 +14,15 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.View.OnFocusChangeListener
 import android.view.View.OnTouchListener
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.LinearLayout
-import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.ui.R
 import app.aaps.core.ui.databinding.NumberPickerLayoutBinding
+import app.aaps.core.ui.toast.ToastUtils
 import java.text.NumberFormat
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -52,7 +51,7 @@ open class NumberPicker(context: Context, attrs: AttributeSet? = null) : LinearL
     private var mCustomContentDescription: String? = null
     protected lateinit var binding: NumberPickerViewAdapter
 
-    private var mHandler: Handler = Handler(Looper.getMainLooper(), Handler.Callback { msg: Message ->
+    private var handler: Handler = Handler(Looper.getMainLooper(), Handler.Callback { msg: Message ->
         when (msg.what) {
             MSG_INC -> {
                 inc(msg.arg1)
@@ -67,7 +66,7 @@ open class NumberPicker(context: Context, attrs: AttributeSet? = null) : LinearL
         false
     })
 
-    private fun Boolean.toVisibility() = if (this) View.VISIBLE else View.GONE
+    private fun Boolean.toVisibility() = if (this) VISIBLE else GONE
     private fun stringToDouble(inputString: String?, defaultValue: Double = 0.0): Double {
         var input = inputString ?: return defaultValue
         var result = defaultValue
@@ -76,11 +75,12 @@ open class NumberPicker(context: Context, attrs: AttributeSet? = null) : LinearL
         if (input == "") return defaultValue
         try {
             result = input.toDouble()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
 //            log.error("Error parsing " + input + " to double");
         }
         return result
     }
+
     private inner class UpdateCounterTask(private val mInc: Boolean) : Runnable {
 
         private var repeated = 0
@@ -97,7 +97,7 @@ open class NumberPicker(context: Context, attrs: AttributeSet? = null) : LinearL
             } else {
                 msg.what = MSG_DEC
             }
-            mHandler.sendMessage(msg)
+            handler.sendMessage(msg)
         }
     }
 
@@ -295,10 +295,16 @@ open class NumberPicker(context: Context, attrs: AttributeSet? = null) : LinearL
             return
         }
         mUpdater = Executors.newSingleThreadScheduledExecutor()
-        mUpdater?.scheduleAtFixedRate(
+        mUpdater?.scheduleWithFixedDelay(
             UpdateCounterTask(inc), 200, 200,
             TimeUnit.MILLISECONDS
         )
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        stopUpdating()
+        handler.removeCallbacksAndMessages(null)
     }
 
     private fun stopUpdating() {

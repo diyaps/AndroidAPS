@@ -3,22 +3,21 @@ package app.aaps.workflow
 import android.content.Context
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import app.aaps.core.data.time.T
+import app.aaps.core.graph.data.DataPointWithLabelInterface
+import app.aaps.core.graph.data.GlucoseValueDataPoint
+import app.aaps.core.graph.data.PointsWithLabelGraphSeries
 import app.aaps.core.interfaces.aps.Loop
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.nsclient.ProcessedDeviceStatusData
+import app.aaps.core.interfaces.overview.OverviewData
 import app.aaps.core.interfaces.overview.OverviewMenus
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.utils.T
-import app.aaps.core.main.graph.OverviewData
-import app.aaps.core.main.graph.data.DataPointWithLabelInterface
-import app.aaps.core.main.graph.data.GlucoseValueDataPoint
-import app.aaps.core.main.graph.data.PointsWithLabelGraphSeries
-import app.aaps.core.main.utils.worker.LoggingWorker
+import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.objects.workflow.LoggingWorker
 import app.aaps.core.utils.receivers.DataWorkerStorage
-import app.aaps.database.impl.AppRepository
-import dagger.android.HasAndroidInjector
 import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
 import javax.inject.Inject
@@ -31,9 +30,7 @@ class PreparePredictionsWorker(
     params: WorkerParameters
 ) : LoggingWorker(context, params, Dispatchers.Default) {
 
-    @Inject lateinit var injector: HasAndroidInjector
     @Inject lateinit var overviewData: OverviewData
-    @Inject lateinit var repository: AppRepository
     @Inject lateinit var rxBus: RxBus
     @Inject lateinit var config: Config
     @Inject lateinit var processedDeviceStatusData: ProcessedDeviceStatusData
@@ -42,6 +39,7 @@ class PreparePredictionsWorker(
     @Inject lateinit var dataWorkerStorage: DataWorkerStorage
     @Inject lateinit var profileUtil: ProfileUtil
     @Inject lateinit var rh: ResourceHelper
+    @Inject lateinit var dateUtil: DateUtil
 
     class PreparePredictionsData(
         val overviewData: OverviewData
@@ -51,8 +49,8 @@ class PreparePredictionsWorker(
         val data = dataWorkerStorage.pickupObject(inputData.getLong(DataWorkerStorage.STORE_KEY, -1)) as PreparePredictionsData?
             ?: return Result.failure(workDataOf("Error" to "missing input data"))
 
-        val apsResult = if (config.APS) loop.lastRun?.constraintsProcessed else processedDeviceStatusData.getAPSResult(injector)
-        val predictionsAvailable = if (config.APS) loop.lastRun?.request?.hasPredictions == true else config.NSCLIENT
+        val apsResult = if (config.APS) loop.lastRun?.constraintsProcessed else processedDeviceStatusData.getAPSResult()
+        val predictionsAvailable = if (config.APS) loop.lastRun?.request?.hasPredictions == true else config.AAPSCLIENT
         val menuChartSettings = overviewMenus.setting
         // align to hours
         val calendar = Calendar.getInstance().also {
@@ -77,8 +75,8 @@ class PreparePredictionsWorker(
         }
 
         val bgListArray: MutableList<DataPointWithLabelInterface> = ArrayList()
-        val predictions: MutableList<GlucoseValueDataPoint>? = apsResult?.predictions
-            ?.map { bg -> GlucoseValueDataPoint(bg, profileUtil, rh) }
+        val predictions: MutableList<GlucoseValueDataPoint>? = apsResult?.predictionsAsGv
+            ?.map { bg -> GlucoseValueDataPoint(bg, profileUtil, rh, dateUtil) }
             ?.toMutableList()
         if (predictions != null) {
             predictions.sortWith { o1: GlucoseValueDataPoint, o2: GlucoseValueDataPoint -> o1.x.compareTo(o2.x) }

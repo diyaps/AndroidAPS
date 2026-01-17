@@ -10,55 +10,46 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import androidx.fragment.app.FragmentManager
-import app.aaps.core.interfaces.aps.ApsMode
+import app.aaps.core.data.model.RM
+import app.aaps.core.data.pump.defs.PumpDescription
+import app.aaps.core.data.time.T
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.aps.Loop
+import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.configuration.ConfigBuilder
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
-import app.aaps.core.interfaces.constraints.Objectives
-import app.aaps.core.interfaces.extensions.runOnUiThread
-import app.aaps.core.interfaces.extensions.toVisibility
+import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.logging.UserEntryLogger
 import app.aaps.core.interfaces.plugin.ActivePlugin
-import app.aaps.core.interfaces.plugin.PluginBase
-import app.aaps.core.interfaces.plugin.PluginType
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.protection.ProtectionCheck
-import app.aaps.core.interfaces.pump.defs.PumpDescription
-import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.queue.CommandQueue
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.rx.events.EventPreferenceChange
-import app.aaps.core.interfaces.rx.events.EventRefreshOverview
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.T
+import app.aaps.core.interfaces.utils.Translator
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
-import app.aaps.core.main.constraints.ConstraintObject
+import app.aaps.core.keys.BooleanNonKey
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.dialogs.OKDialog
+import app.aaps.core.ui.extensions.runOnUiThread
+import app.aaps.core.ui.extensions.toVisibility
 import app.aaps.core.ui.toast.ToastUtils
-import app.aaps.database.entities.OfflineEvent
-import app.aaps.database.entities.UserEntry
-import app.aaps.database.entities.ValueWithUnit
-import app.aaps.database.impl.AppRepository
-import app.aaps.database.impl.transactions.CancelCurrentOfflineEventIfAnyTransaction
-import app.aaps.database.impl.transactions.InsertAndCancelCurrentOfflineEventTransaction
 import app.aaps.ui.R
 import app.aaps.ui.databinding.DialogLoopBinding
-import dagger.android.HasAndroidInjector
 import dagger.android.support.DaggerDialogFragment
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.kotlin.plusAssign
 import javax.inject.Inject
 
 class LoopDialog : DaggerDialogFragment() {
 
     @Inject lateinit var aapsLogger: AAPSLogger
     @Inject lateinit var ctx: Context
-    @Inject lateinit var sp: SP
+    @Inject lateinit var preferences: Preferences
     @Inject lateinit var rxBus: RxBus
     @Inject lateinit var fabricPrivacy: FabricPrivacy
     @Inject lateinit var rh: ResourceHelper
@@ -70,10 +61,11 @@ class LoopDialog : DaggerDialogFragment() {
     @Inject lateinit var configBuilder: ConfigBuilder
     @Inject lateinit var uel: UserEntryLogger
     @Inject lateinit var dateUtil: DateUtil
-    @Inject lateinit var repository: AppRepository
+    @Inject lateinit var persistenceLayer: PersistenceLayer
     @Inject lateinit var protectionCheck: ProtectionCheck
     @Inject lateinit var uiInteraction: UiInteraction
-    @Inject lateinit var injector: HasAndroidInjector
+    @Inject lateinit var config: Config
+    @Inject lateinit var translator: Translator
 
     private var queryingProtection = false
     private var showOkCancel: Boolean = true
@@ -96,7 +88,7 @@ class LoopDialog : DaggerDialogFragment() {
 
     override fun onSaveInstanceState(savedInstanceState: Bundle) {
         super.onSaveInstanceState(savedInstanceState)
-        savedInstanceState.putInt("showOkCancel", if (showOkCancel) 1 else 0)
+        savedInstanceState.putBoolean("showOkCancel", showOkCancel)
     }
 
     override fun onCreateView(
@@ -105,7 +97,7 @@ class LoopDialog : DaggerDialogFragment() {
     ): View {
         // load data from bundle
         (savedInstanceState ?: arguments)?.let { bundle ->
-            showOkCancel = bundle.getInt("showOkCancel", 1) == 1
+            showOkCancel = bundle.getBoolean("showOkCancel", true)
         }
         dialog?.window?.requestFeature(Window.FEATURE_NO_TITLE)
         dialog?.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
@@ -123,7 +115,6 @@ class LoopDialog : DaggerDialogFragment() {
         binding.overviewLgsloop.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
         binding.overviewOpenloop.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
         binding.overviewDisable.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
-        binding.overviewEnable.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
         binding.overviewResume.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
         binding.overviewReconnect.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
         binding.overviewSuspend1h.setOnClickListener { if (showOkCancel) onClickOkCancelEnabled(it) else onClick(it); dismiss() }
@@ -147,10 +138,17 @@ class LoopDialog : DaggerDialogFragment() {
     }
 
     @Synchronized
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacksAndMessages(null)
+    }
+
+    @Synchronized
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
         handler.removeCallbacksAndMessages(null)
+        handler.looper.quitSafely()
         disposable.clear()
     }
 
@@ -159,96 +157,50 @@ class LoopDialog : DaggerDialogFragment() {
         if (_binding == null) return
         aapsLogger.debug("UpdateGUI from $from")
         val pumpDescription: PumpDescription = activePlugin.activePump.pumpDescription
-        val closedLoopAllowed = constraintChecker.isClosedLoopAllowed(ConstraintObject(true, aapsLogger))
-        val closedLoopAllowed2 = activePlugin.activeObjectives?.isAccomplished(Objectives.MAXIOB_OBJECTIVE) ?: false
-        val lgsEnabled = constraintChecker.isLgsAllowed(ConstraintObject(true, aapsLogger))
-        val apsMode = ApsMode.fromString(sp.getString(app.aaps.core.utils.R.string.key_aps_mode, ApsMode.OPEN.name))
-        val pump = activePlugin.activePump
+
+        val runningModeRecord = loop.runningModeRecord
+        val runningMode = loop.runningModeRecord.mode
+        val allowedModes = loop.allowedNextModes()
+
+        binding.runningMode.text = translator.translate(runningMode)
+        if (runningModeRecord.reasons?.isNotEmpty() == true) {
+            binding.overviewReasonsLayout.visibility = View.VISIBLE
+            binding.overviewReasons.text = runningModeRecord.reasons
+        } else binding.overviewReasonsLayout.visibility = View.GONE
+
+        binding.overviewLoop.visibility = (
+            allowedModes.contains(RM.Mode.DISABLED_LOOP) ||
+                allowedModes.contains(RM.Mode.OPEN_LOOP) ||
+                allowedModes.contains(RM.Mode.CLOSED_LOOP) ||
+                allowedModes.contains(RM.Mode.CLOSED_LOOP_LGS)
+            ).toVisibility()
+        binding.overviewSuspend.visibility = (
+            allowedModes.contains(RM.Mode.SUSPENDED_BY_USER) ||
+                allowedModes.contains(RM.Mode.RESUME) && runningMode == RM.Mode.SUSPENDED_BY_USER
+            ).toVisibility()
+        binding.overviewPump.visibility = (
+            allowedModes.contains(RM.Mode.DISCONNECTED_PUMP) ||
+                allowedModes.contains(RM.Mode.RESUME) && runningMode == RM.Mode.DISCONNECTED_PUMP
+            ).toVisibility()
+        binding.overviewDisconnectButtons.visibility = (allowedModes.contains(RM.Mode.DISCONNECTED_PUMP) && config.APS).toVisibility()
+        binding.overviewPumpHeader.visibility = config.APS.toVisibility()
+        binding.overviewReconnect.visibility = (allowedModes.contains(RM.Mode.RESUME) && runningMode == RM.Mode.DISCONNECTED_PUMP).toVisibility()
+        binding.overviewSuspendButtons.visibility = allowedModes.contains(RM.Mode.SUSPENDED_BY_USER).toVisibility()
+        binding.overviewResume.visibility = (allowedModes.contains(RM.Mode.RESUME) && runningMode == RM.Mode.SUSPENDED_BY_USER).toVisibility()
+        binding.overviewDisable.visibility = allowedModes.contains(RM.Mode.DISABLED_LOOP).toVisibility()
+        binding.overviewCloseloop.visibility = allowedModes.contains(RM.Mode.CLOSED_LOOP).toVisibility()
+        binding.overviewLgsloop.visibility = allowedModes.contains(RM.Mode.CLOSED_LOOP_LGS).toVisibility()
+        binding.overviewOpenloop.visibility = allowedModes.contains(RM.Mode.OPEN_LOOP).toVisibility()
 
         binding.overviewDisconnect15m.visibility = pumpDescription.tempDurationStep15mAllowed.toVisibility()
         binding.overviewDisconnect30m.visibility = pumpDescription.tempDurationStep30mAllowed.toVisibility()
-        when {
-            pump.isSuspended()                                     -> {
-                binding.overviewLoop.visibility = View.GONE
-                binding.overviewSuspend.visibility = View.GONE
-                binding.overviewPump.visibility = View.GONE
-            }
 
-            !profileFunction.isProfileValid("LoopDialogUpdateGUI") -> {
-                binding.overviewLoop.visibility = View.GONE
-                binding.overviewSuspend.visibility = View.GONE
-                binding.overviewPump.visibility = View.GONE
-            }
+        if (runningMode == RM.Mode.SUSPENDED_BY_USER) binding.overviewSuspendHeader.text = rh.gs(app.aaps.core.ui.R.string.resumeloop)
+        else binding.overviewSuspendHeader.text = rh.gs(app.aaps.core.ui.R.string.suspendloop)
 
-            loop.isDisconnected                                    -> {
-                binding.overviewLoop.visibility = View.GONE
-                binding.overviewSuspend.visibility = View.GONE
-                binding.overviewPump.visibility = View.VISIBLE
-                binding.overviewPumpHeader.text = rh.gs(R.string.reconnect)
-                binding.overviewDisconnectButtons.visibility = View.VISIBLE
-                binding.overviewReconnect.visibility = View.VISIBLE
-            }
+        if (runningMode == RM.Mode.DISCONNECTED_PUMP) binding.overviewPumpHeader.text = rh.gs(R.string.reconnect)
+        else binding.overviewPumpHeader.text = rh.gs(R.string.disconnectpump)
 
-            !loop.isEnabled()                                      -> {
-                binding.overviewLoop.visibility = View.VISIBLE
-                binding.overviewEnable.visibility = View.VISIBLE
-                binding.overviewDisable.visibility = View.GONE
-                binding.overviewSuspend.visibility = View.GONE
-                binding.overviewPump.visibility = View.VISIBLE
-                binding.overviewReconnect.visibility = View.GONE
-            }
-
-            loop.isSuspended                                       -> {
-                binding.overviewLoop.visibility = View.GONE
-                binding.overviewSuspend.visibility = View.VISIBLE
-                binding.overviewSuspendHeader.text = rh.gs(app.aaps.core.ui.R.string.resumeloop)
-                binding.overviewSuspendButtons.visibility = View.VISIBLE
-                binding.overviewResume.visibility = View.VISIBLE
-                binding.overviewPump.visibility = View.GONE
-                binding.overviewReconnect.visibility = View.GONE
-            }
-
-            else                                                   -> {
-                binding.overviewLoop.visibility = View.VISIBLE
-                binding.overviewEnable.visibility = View.GONE
-                when (apsMode) {
-                    ApsMode.CLOSED -> {
-                        binding.overviewCloseloop.visibility = View.GONE
-                        binding.overviewLgsloop.visibility = View.VISIBLE
-                        binding.overviewOpenloop.visibility = View.VISIBLE
-                    }
-
-                    ApsMode.LGS    -> {
-                        binding.overviewCloseloop.visibility = closedLoopAllowed.value().toVisibility()   //show Close loop button only if Close loop allowed
-                        binding.overviewLgsloop.visibility = View.GONE
-                        binding.overviewOpenloop.visibility = View.VISIBLE
-                    }
-
-                    ApsMode.OPEN   -> {
-                        binding.overviewCloseloop.visibility =
-                            closedLoopAllowed2.toVisibility()          //show CloseLoop button only if Objective 6 is completed (closedLoopAllowed always false in open loop mode)
-                        binding.overviewLgsloop.visibility = lgsEnabled.value().toVisibility()
-                        binding.overviewOpenloop.visibility = View.GONE
-                    }
-
-                    else           -> {
-                        binding.overviewCloseloop.visibility = View.GONE
-                        binding.overviewLgsloop.visibility = View.GONE
-                        binding.overviewOpenloop.visibility = View.GONE
-                    }
-                }
-                binding.overviewSuspend.visibility = View.VISIBLE
-                binding.overviewSuspendHeader.text = rh.gs(app.aaps.core.ui.R.string.suspendloop)
-                binding.overviewSuspendButtons.visibility = View.VISIBLE
-                binding.overviewResume.visibility = View.GONE
-
-                binding.overviewPump.visibility = View.VISIBLE
-                binding.overviewPumpHeader.text = rh.gs(R.string.disconnectpump)
-                binding.overviewDisconnectButtons.visibility = View.VISIBLE
-                binding.overviewReconnect.visibility = View.GONE
-
-            }
-        }
     }
 
     private fun onClickOkCancelEnabled(v: View): Boolean {
@@ -258,7 +210,6 @@ class LoopDialog : DaggerDialogFragment() {
             R.id.overview_lgsloop        -> description = rh.gs(app.aaps.core.ui.R.string.lowglucosesuspend)
             R.id.overview_openloop       -> description = rh.gs(app.aaps.core.ui.R.string.openloop)
             R.id.overview_disable        -> description = rh.gs(app.aaps.core.ui.R.string.disableloop)
-            R.id.overview_enable         -> description = rh.gs(app.aaps.core.ui.R.string.enableloop)
             R.id.overview_resume         -> description = rh.gs(R.string.resume)
             R.id.overview_reconnect      -> description = rh.gs(R.string.reconnect)
             R.id.overview_suspend_1h     -> description = rh.gs(R.string.suspendloopfor1h)
@@ -280,157 +231,77 @@ class LoopDialog : DaggerDialogFragment() {
     }
 
     private fun onClick(v: View): Boolean {
+        val profile = profileFunction.getProfile() ?: return false
         when (v.id) {
             R.id.overview_closeloop                       -> {
-                uel.log(UserEntry.Action.CLOSED_LOOP_MODE, UserEntry.Sources.LoopDialog)
-                sp.putString(app.aaps.core.utils.R.string.key_aps_mode, ApsMode.CLOSED.name)
-                rxBus.send(EventPreferenceChange(rh.gs(app.aaps.core.ui.R.string.closedloop)))
+                loop.handleRunningModeChange(newRM = RM.Mode.CLOSED_LOOP, action = Action.CLOSED_LOOP_MODE, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_lgsloop                         -> {
-                uel.log(UserEntry.Action.LGS_LOOP_MODE, UserEntry.Sources.LoopDialog)
-                sp.putString(app.aaps.core.utils.R.string.key_aps_mode, ApsMode.LGS.name)
-                rxBus.send(EventPreferenceChange(rh.gs(app.aaps.core.ui.R.string.lowglucosesuspend)))
+                loop.handleRunningModeChange(newRM = RM.Mode.CLOSED_LOOP_LGS, action = Action.LGS_LOOP_MODE, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_openloop                        -> {
-                uel.log(UserEntry.Action.OPEN_LOOP_MODE, UserEntry.Sources.LoopDialog)
-                sp.putString(app.aaps.core.utils.R.string.key_aps_mode, ApsMode.OPEN.name)
-                rxBus.send(EventPreferenceChange(rh.gs(app.aaps.core.ui.R.string.lowglucosesuspend)))
+                loop.handleRunningModeChange(newRM = RM.Mode.OPEN_LOOP, action = Action.OPEN_LOOP_MODE, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_disable                         -> {
-                uel.log(UserEntry.Action.LOOP_DISABLED, UserEntry.Sources.LoopDialog)
-                (loop as PluginBase).setPluginEnabled(PluginType.LOOP, false)
-                (loop as PluginBase).setFragmentVisible(PluginType.LOOP, false)
-                configBuilder.storeSettings("DisablingLoop")
-                rxBus.send(EventRefreshOverview("suspend_menu"))
-                commandQueue.cancelTempBasal(true, object : Callback() {
-                    override fun run() {
-                        if (!result.success) {
-                            ToastUtils.errorToast(ctx, rh.gs(app.aaps.core.ui.R.string.temp_basal_delivery_error))
-                        }
-                    }
-                })
-                disposable += repository.runTransactionForResult(InsertAndCancelCurrentOfflineEventTransaction(dateUtil.now(), T.days(365).msecs(), OfflineEvent.Reason.DISABLE_LOOP))
-                    .subscribe({ result ->
-                                   result.updated.forEach { aapsLogger.debug(LTag.DATABASE, "Updated OfflineEvent $it") }
-                                   result.inserted.forEach { aapsLogger.debug(LTag.DATABASE, "Inserted OfflineEvent $it") }
-                               }, {
-                                   aapsLogger.error(LTag.DATABASE, "Error while saving OfflineEvent", it)
-                               })
-                return true
-            }
-
-            R.id.overview_enable                          -> {
-                uel.log(UserEntry.Action.LOOP_ENABLED, UserEntry.Sources.LoopDialog)
-                (loop as PluginBase).setPluginEnabled(PluginType.LOOP, true)
-                (loop as PluginBase).setFragmentVisible(PluginType.LOOP, true)
-                configBuilder.storeSettings("EnablingLoop")
-                rxBus.send(EventRefreshOverview("suspend_menu"))
-                disposable += repository.runTransactionForResult(CancelCurrentOfflineEventIfAnyTransaction(dateUtil.now()))
-                    .subscribe({ result ->
-                                   result.updated.forEach { aapsLogger.debug(LTag.DATABASE, "Updated OfflineEvent $it") }
-                               }, {
-                                   aapsLogger.error(LTag.DATABASE, "Error while saving OfflineEvent", it)
-                               })
+                loop.handleRunningModeChange(newRM = RM.Mode.DISABLED_LOOP, durationInMinutes = Int.MAX_VALUE, action = Action.LOOP_DISABLED, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_resume, R.id.overview_reconnect -> {
-                uel.log(if (v.id == R.id.overview_resume) UserEntry.Action.RESUME else UserEntry.Action.RECONNECT, UserEntry.Sources.LoopDialog)
-                disposable += repository.runTransactionForResult(CancelCurrentOfflineEventIfAnyTransaction(dateUtil.now()))
-                    .subscribe({ result ->
-                                   result.updated.forEach { aapsLogger.debug(LTag.DATABASE, "Updated OfflineEvent $it") }
-                               }, {
-                                   aapsLogger.error(LTag.DATABASE, "Error while saving OfflineEvent", it)
-                               })
-                rxBus.send(EventRefreshOverview("suspend_menu"))
-                commandQueue.cancelTempBasal(true, object : Callback() {
-                    override fun run() {
-                        if (!result.success) {
-                            uiInteraction.runAlarm(result.comment, rh.gs(app.aaps.core.ui.R.string.temp_basal_delivery_error), app.aaps.core.ui.R.raw.boluserror)
-                        }
-                    }
-                })
-                sp.putBoolean(app.aaps.core.utils.R.string.key_objectiveusereconnect, true)
+                loop.handleRunningModeChange(newRM = RM.Mode.RESUME, action = if (v.id == R.id.overview_resume) Action.RESUME else Action.RECONNECT, source = Sources.LoopDialog, profile = profile)
+                preferences.put(BooleanNonKey.ObjectivesReconnectUsed, true)
                 return true
             }
 
             R.id.overview_suspend_1h                      -> {
-                uel.log(UserEntry.Action.SUSPEND, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(1))
-                loop.suspendLoop(T.hours(1).mins().toInt())
-                rxBus.send(EventRefreshOverview("suspend_menu"))
+                loop.handleRunningModeChange(newRM = RM.Mode.SUSPENDED_BY_USER, durationInMinutes = T.hours(1).mins().toInt(), action = Action.SUSPEND, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_suspend_2h                      -> {
-                uel.log(UserEntry.Action.SUSPEND, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(2))
-                loop.suspendLoop(T.hours(2).mins().toInt())
-                rxBus.send(EventRefreshOverview("suspend_menu"))
+                loop.handleRunningModeChange(newRM = RM.Mode.SUSPENDED_BY_USER, durationInMinutes = T.hours(2).mins().toInt(), action = Action.SUSPEND, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_suspend_3h                      -> {
-                uel.log(UserEntry.Action.SUSPEND, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(3))
-                loop.suspendLoop(T.hours(3).mins().toInt())
-                rxBus.send(EventRefreshOverview("suspend_menu"))
+                loop.handleRunningModeChange(newRM = RM.Mode.SUSPENDED_BY_USER, durationInMinutes = T.hours(3).mins().toInt(), action = Action.SUSPEND, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_suspend_10h                     -> {
-                uel.log(UserEntry.Action.SUSPEND, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(10))
-                loop.suspendLoop(T.hours(10).mins().toInt())
-                rxBus.send(EventRefreshOverview("suspend_menu"))
+                loop.handleRunningModeChange(newRM = RM.Mode.SUSPENDED_BY_USER, durationInMinutes = T.hours(10).mins().toInt(), action = Action.SUSPEND, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_disconnect_15m                  -> {
-                profileFunction.getProfile()?.let { profile ->
-                    uel.log(UserEntry.Action.DISCONNECT, UserEntry.Sources.LoopDialog, ValueWithUnit.Minute(15))
-                    loop.goToZeroTemp(T.mins(15).mins().toInt(), profile, OfflineEvent.Reason.DISCONNECT_PUMP)
-                    rxBus.send(EventRefreshOverview("suspend_menu"))
-                }
+                loop.handleRunningModeChange(newRM = RM.Mode.DISCONNECTED_PUMP, durationInMinutes = 15, action = Action.DISCONNECT, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_disconnect_30m                  -> {
-                profileFunction.getProfile()?.let { profile ->
-                    uel.log(UserEntry.Action.DISCONNECT, UserEntry.Sources.LoopDialog, ValueWithUnit.Minute(30))
-                    loop.goToZeroTemp(T.mins(30).mins().toInt(), profile, OfflineEvent.Reason.DISCONNECT_PUMP)
-                    rxBus.send(EventRefreshOverview("suspend_menu"))
-                }
+                loop.handleRunningModeChange(newRM = RM.Mode.DISCONNECTED_PUMP, durationInMinutes = 30, action = Action.DISCONNECT, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_disconnect_1h                   -> {
-                profileFunction.getProfile()?.let { profile ->
-                    uel.log(UserEntry.Action.DISCONNECT, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(1))
-                    loop.goToZeroTemp(T.hours(1).mins().toInt(), profile, OfflineEvent.Reason.DISCONNECT_PUMP)
-                    rxBus.send(EventRefreshOverview("suspend_menu"))
-                }
-                sp.putBoolean(app.aaps.core.utils.R.string.key_objectiveusedisconnect, true)
+                loop.handleRunningModeChange(newRM = RM.Mode.DISCONNECTED_PUMP, durationInMinutes = 60, action = Action.DISCONNECT, source = Sources.LoopDialog, profile = profile)
+                preferences.put(BooleanNonKey.ObjectivesDisconnectUsed, true)
                 return true
             }
 
             R.id.overview_disconnect_2h                   -> {
-                profileFunction.getProfile()?.let { profile ->
-                    uel.log(UserEntry.Action.DISCONNECT, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(2))
-                    loop.goToZeroTemp(T.hours(2).mins().toInt(), profile, OfflineEvent.Reason.DISCONNECT_PUMP)
-                    rxBus.send(EventRefreshOverview("suspend_menu"))
-                }
+                loop.handleRunningModeChange(newRM = RM.Mode.DISCONNECTED_PUMP, durationInMinutes = 120, action = Action.DISCONNECT, source = Sources.LoopDialog, profile = profile)
                 return true
             }
 
             R.id.overview_disconnect_3h                   -> {
-                profileFunction.getProfile()?.let { profile ->
-                    uel.log(UserEntry.Action.DISCONNECT, UserEntry.Sources.LoopDialog, ValueWithUnit.Hour(3))
-                    loop.goToZeroTemp(T.hours(3).mins().toInt(), profile, OfflineEvent.Reason.DISCONNECT_PUMP)
-                    rxBus.send(EventRefreshOverview("suspend_menu"))
-                }
+                loop.handleRunningModeChange(newRM = RM.Mode.DISCONNECTED_PUMP, durationInMinutes = 180, action = Action.DISCONNECT, source = Sources.LoopDialog, profile = profile)
                 return true
             }
         }

@@ -40,7 +40,6 @@
     <string name="name_short">Név:</string>
     <string name="time">Idő</string>
     <string name="ns_wifi_ssids">WiFi SSID</string>
-    <string name="loading">Betöltés…</string>
     <string name="remove_button">Eltávolít</string>
     <string name="bg_label">VC</string>
     <string name="calibration">Kalibrálás</string>
@@ -102,7 +101,6 @@
     <string name="basal">Bázis</string>
     <string name="basalpct">Bázis %</string>
     <!-- Autotune -->
-    <string name="autotune_compare_profile">Profilok összehasonlítása</string>
     <!-- Alerts -->
     <string name="info">INFO</string>
     <!-- BolusWizard -->
@@ -119,7 +117,6 @@
     <string name="pairing">Párosítás</string>
     <string name="initializing">Inicializálás ...</string>
     <!--    Constraints-->
-    <!-- Locale -->
     <!--    Dialogs-->
     <string name="ok">OK</string>
     <string name="cancel">Mégse</string>
@@ -127,6 +124,8 @@
     <string name="no">Nem</string>
     <string name="close">Bezár</string>
     <!-- TwoMessagesDialog -->
+    <!-- <unattended_export> -->
+    <!-- <unattended_export result messages> -->
     <!-- NumberPicker -->
     <!-- datetime layout -->
     <!-- BluetoothDevicePreference -->
@@ -154,4 +153,5 @@
     <!-- WeekdayPicker -->
     <!--    DecimalFormatterImpl -->
     <string name="format_insulin_units">%1$.2f E</string>
+    <!--    Playback-->
 </resources>

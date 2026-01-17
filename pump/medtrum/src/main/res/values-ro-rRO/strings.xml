@@ -12,6 +12,7 @@
     <string name="pump_is_suspended_day_max">Pompă suspendată din cauza depăşirii valorii maxime zilnice a insulinei</string>
     <string name="patch_not_active">Patch neactivat</string>
     <string name="pump_setting_failed">Setarea setărilor utilizatorului pe pompă a eșuat!</string>
+    <string name="pump_sync_error">Eroare la sincronizarea istoricului de la pompă, o înregistrare a fost omisă. Verifică fila de tratament pentru a vedea dacă bolusul este sincronizat corect. Amână alarma și, dacă eroarea reapare, schimbă patch-ul sau baza pompei.</string>
     <!-- overview fragment -->
     <string name="ble_status_label">Stare BLE</string>
     <string name="last_connection_label">Ultima conexiune</string>
@@ -48,7 +49,6 @@
     <string name="alarm_expired">Expirat</string>
     <string name="alarm_reservoir_empty">Rezervor gol</string>
     <string name="alarm_patch_fault">Patch defect</string>
-    <string name="alarm_patch_fault2">Patch defect 2</string>
     <string name="alarm_base_fault">Defecțiune de bază</string>
     <string name="alarm_battery_out">Baterie descărcată</string>
     <string name="alarm_no_calibration">Fără calibrare</string>
@@ -107,11 +107,12 @@
     <string name="sn_input_title">Număr de serie</string>
     <string name="sn_input_summary">Introdu numărul de serie al bazei pompei.</string>
     <string name="sn_input_invalid">Număr de serie invalid!</string>
-    <string name="pump_unsupported">Pompă netestată: %1$d! Te rugăm să ne contactezi pe discord sau github pentru suport.</string>
     <string name="alarm_setting_title">Setări alarmă</string>
     <string name="alarm_setting_summary">Selectează setările preferate pentru alarma pompei.</string>
     <string name="pump_warning_notification_title">Notificare la avertizarea pompei</string>
     <string name="pump_warning_notification_summary">Arată notificare cu privire la avertismentele non-critice ale pompei: baterie scăzută, rezervor redus (20 de unități) și expiră în curând. Se recomandă să lăsaţi activat când alarmele pompei sunt setate la silențios.</string>
+    <string name="pump_warning_expiry_hour_title">Atenționare expirare pompă [hours]</string>
+    <string name="pump_warning_expiry_hour_summary">Arată notificarea la ora specificată după activare.</string>
     <string name="patch_expiration_title">Patch Expirare</string>
     <string name="patch_expiration_summary">Când este activat, patchul va expira după 3 zile, cu o perioadă de graţie de 8 ore după expirare.</string>
     <string name="hourly_max_insulin_title">Insulină maximă pe oră</string>
@@ -123,4 +124,5 @@
     <string name="getting_bolus_status">Se citește starea bolusului</string>
     <string name="getting_temp_basal_status">Se citește starea bazalei temporare</string>
     <string name="setting_pump_settings">Setare opțiuni utilizator</string>
+    <!-- bolus-->
 </resources>

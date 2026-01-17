@@ -10,26 +10,30 @@ import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.HardLimits
-import app.aaps.core.main.extensions.pureProfileFromJson
-import app.aaps.core.main.profile.ProfileSealed
+import app.aaps.core.objects.extensions.pureProfileFromJson
+import app.aaps.core.objects.profile.ProfileSealed
 import app.aaps.core.utils.JsonHelper
-import dagger.android.HasAndroidInjector
 import org.json.JSONException
 import org.json.JSONObject
 import javax.inject.Inject
 
-class ProfileStoreObject(val injector: HasAndroidInjector, override val data: JSONObject, val dateUtil: DateUtil) : ProfileStore {
+class ProfileStoreObject @Inject constructor(
+    private val aapsLogger: AAPSLogger,
+    private val activePlugin: ActivePlugin,
+    private val config: Config,
+    private val rh: ResourceHelper,
+    private val rxBus: RxBus,
+    private val hardLimits: HardLimits,
+    private val dateUtil: DateUtil
+) : ProfileStore {
 
-    @Inject lateinit var aapsLogger: AAPSLogger
-    @Inject lateinit var activePlugin: ActivePlugin
-    @Inject lateinit var config: Config
-    @Inject lateinit var rh: ResourceHelper
-    @Inject lateinit var rxBus: RxBus
-    @Inject lateinit var hardLimits: HardLimits
+    private lateinit var data: JSONObject
 
-    init {
-        injector.androidInjector().inject(this)
+    override fun with(data: JSONObject): ProfileStore = this.also {
+        this.data = data
     }
+
+    override fun getData(): JSONObject = data
 
     private val cachedObjects = ArrayMap<String, PureProfile>()
 
@@ -48,7 +52,7 @@ class ProfileStoreObject(val injector: HasAndroidInjector, override val data: JS
         val iso = JsonHelper.safeGetString(data, "created_at") ?: JsonHelper.safeGetString(data, "startDate") ?: return 0
         return try {
             dateUtil.fromISODateString(iso)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             0
         }
     }
@@ -103,6 +107,6 @@ class ProfileStoreObject(val injector: HasAndroidInjector, override val data: JS
         get() = getProfileList()
             .asSequence()
             .map { profileName -> getSpecificProfile(profileName.toString()) }
-            .map { pureProfile -> pureProfile?.let { ProfileSealed.Pure(pureProfile).isValid("allProfilesValid", activePlugin.activePump, config, rh, rxBus, hardLimits, false) } }
+            .map { pureProfile -> pureProfile?.let { ProfileSealed.Pure(pureProfile, activePlugin).isValid("allProfilesValid", activePlugin.activePump, config, rh, rxBus, hardLimits, false) } }
             .all { it?.isValid == true }
 }

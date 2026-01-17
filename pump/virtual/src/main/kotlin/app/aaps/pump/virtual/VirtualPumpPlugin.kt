@@ -1,17 +1,25 @@
 package app.aaps.pump.virtual
 
+import android.content.Context
 import android.os.SystemClock
-import androidx.preference.PreferenceFragmentCompat
-import androidx.preference.SwitchPreference
+import androidx.preference.PreferenceCategory
+import androidx.preference.PreferenceManager
+import androidx.preference.PreferenceScreen
+import app.aaps.core.data.plugin.PluginType
+import app.aaps.core.data.pump.defs.ManufacturerType
+import app.aaps.core.data.pump.defs.PumpDescription
+import app.aaps.core.data.pump.defs.PumpType
+import app.aaps.core.data.pump.defs.TimeChangeType
+import app.aaps.core.data.time.T
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
-import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.nsclient.ProcessedDeviceStatusData
 import app.aaps.core.interfaces.plugin.PluginDescription
-import app.aaps.core.interfaces.plugin.PluginType
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.pump.BolusProgressData
@@ -21,64 +29,60 @@ import app.aaps.core.interfaces.pump.PumpEnactResult
 import app.aaps.core.interfaces.pump.PumpPluginBase
 import app.aaps.core.interfaces.pump.PumpSync
 import app.aaps.core.interfaces.pump.VirtualPump
-import app.aaps.core.interfaces.pump.defs.ManufacturerType
-import app.aaps.core.interfaces.pump.defs.PumpDescription
-import app.aaps.core.interfaces.pump.defs.PumpType
+import app.aaps.core.interfaces.pump.defs.fillFor
 import app.aaps.core.interfaces.queue.CommandQueue
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
+import app.aaps.core.interfaces.rx.events.EventNewNotification
 import app.aaps.core.interfaces.rx.events.EventOverviewBolusProgress
 import app.aaps.core.interfaces.rx.events.EventPreferenceChange
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.T
-import app.aaps.core.interfaces.utils.TimeChangeType
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
-import app.aaps.core.main.events.EventNewNotification
-import app.aaps.core.main.extensions.convertedToAbsolute
-import app.aaps.core.main.extensions.plannedRemainingMinutes
+import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.StringKey
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.utils.fabric.InstanceId
+import app.aaps.core.validators.preferences.AdaptiveListPreference
+import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
 import app.aaps.pump.virtual.events.EventVirtualPumpUpdateGui
 import app.aaps.pump.virtual.extensions.toText
-import dagger.android.HasAndroidInjector
+import app.aaps.pump.virtual.keys.VirtualBooleanNonPreferenceKey
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
-import org.json.JSONException
-import org.json.JSONObject
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
-import kotlin.math.min
 
 @Singleton
 open class VirtualPumpPlugin @Inject constructor(
-    injector: HasAndroidInjector,
     aapsLogger: AAPSLogger,
     private val rxBus: RxBus,
     private var fabricPrivacy: FabricPrivacy,
     rh: ResourceHelper,
     private val aapsSchedulers: AapsSchedulers,
-    private val sp: SP,
+    preferences: Preferences,
     private val profileFunction: ProfileFunction,
-    private val iobCobCalculator: IobCobCalculator,
     commandQueue: CommandQueue,
     private val pumpSync: PumpSync,
     private val config: Config,
     private val dateUtil: DateUtil,
     private val processedDeviceStatusData: ProcessedDeviceStatusData,
-    private val persistenceLayer: PersistenceLayer
+    private val persistenceLayer: PersistenceLayer,
+    private val pumpEnactResultProvider: Provider<PumpEnactResult>
 ) : PumpPluginBase(
-    PluginDescription()
+    pluginDescription = PluginDescription()
         .mainType(PluginType.PUMP)
         .fragmentClass(VirtualPumpFragment::class.java.name)
-        .pluginIcon(app.aaps.core.main.R.drawable.ic_virtual_pump)
+        .pluginIcon(app.aaps.core.objects.R.drawable.ic_virtual_pump)
         .pluginName(app.aaps.core.ui.R.string.virtual_pump)
         .shortName(R.string.virtual_pump_shortname)
-        .preferencesId(R.xml.pref_virtual_pump)
+        .preferencesId(PluginDescription.PREFERENCE_SCREEN)
         .description(R.string.description_pump_virtual)
         .setDefault()
-        .neverVisible(config.NSCLIENT),
-    injector, aapsLogger, rh, commandQueue
+        .neverVisible(config.AAPSCLIENT),
+    ownPreferences = listOf(VirtualBooleanNonPreferenceKey::class.java),
+    aapsLogger, rh, preferences, commandQueue
 ), Pump, VirtualPump {
 
     private val disposable = CompositeDisposable()
@@ -87,7 +91,7 @@ open class VirtualPumpPlugin @Inject constructor(
 
     var pumpType: PumpType? = null
         private set
-    private var lastDataTime: Long = 0
+    override var lastDataTime: Long = 0
     override val pumpDescription = PumpDescription().also {
         it.isBolusCapable = true
         it.bolusStep = 0.1
@@ -116,7 +120,7 @@ open class VirtualPumpPlugin @Inject constructor(
         disposable += rxBus
             .toObservable(EventPreferenceChange::class.java)
             .observeOn(aapsSchedulers.io)
-            .subscribe({ event: EventPreferenceChange -> if (event.isChanged(rh.gs(app.aaps.core.utils.R.string.key_virtualpump_type))) refreshConfiguration() }, fabricPrivacy::logException)
+            .subscribe({ event: EventPreferenceChange -> if (event.isChanged(StringKey.VirtualPumpType.key)) refreshConfiguration() }, fabricPrivacy::logException)
         refreshConfiguration()
     }
 
@@ -125,23 +129,16 @@ open class VirtualPumpPlugin @Inject constructor(
         super.onStop()
     }
 
-    override fun preprocessPreferences(preferenceFragment: PreferenceFragmentCompat) {
-        super.preprocessPreferences(preferenceFragment)
-        val uploadStatus = preferenceFragment.findPreference(rh.gs(app.aaps.core.utils.R.string.key_virtual_pump_upload_status)) as SwitchPreference?
-            ?: return
-        uploadStatus.isVisible = !config.NSCLIENT
-    }
-
     override val isFakingTempsByExtendedBoluses: Boolean
-        get() = config.NSCLIENT && fakeDataDetected
+        get() = config.AAPSCLIENT && fakeDataDetected
     override var fakeDataDetected = false
 
     override fun loadTDDs(): PumpEnactResult { //no result, could read DB in the future?
-        return PumpEnactResult(injector)
+        return pumpEnactResultProvider.get()
     }
 
     override fun isInitialized(): Boolean = true
-    override fun isSuspended(): Boolean = false
+    override fun isSuspended(): Boolean = preferences.get(VirtualBooleanNonPreferenceKey.IsSuspended)
     override fun isBusy(): Boolean = false
     override fun isConnected(): Boolean = true
     override fun isConnecting(): Boolean = false
@@ -162,56 +159,56 @@ open class VirtualPumpPlugin @Inject constructor(
         lastDataTime = System.currentTimeMillis()
         rxBus.send(EventNewNotification(Notification(Notification.PROFILE_SET_OK, rh.gs(app.aaps.core.ui.R.string.profile_set_ok), Notification.INFO, 60)))
         // Do nothing here. we are using database profile
-        return PumpEnactResult(injector).success(true).enacted(true)
+        return pumpEnactResultProvider.get().success(true).enacted(true)
     }
 
-    override fun isThisProfileSet(profile: Profile): Boolean = pumpSync.expectedPumpState().profile?.isEqual(profile) ?: false
+    override fun isThisProfileSet(profile: Profile): Boolean = pumpSync.expectedPumpState().profile?.isEqual(profile) == true
 
-    override fun lastDataTime(): Long = lastDataTime
-
-    override val baseBasalRate: Double
-        get() = profileFunction.getProfile()?.getBasal() ?: 0.0
+    override val lastBolusTime: Long? get() = pumpSync.expectedPumpState().bolus?.timestamp
+    override val lastBolusAmount: Double? get() = pumpSync.expectedPumpState().bolus?.amount
+    override val baseBasalRate: Double get() = profileFunction.getProfile()?.getBasal() ?: 0.0
 
     override val reservoirLevel: Double
         get() =
-            if (config.NSCLIENT) processedDeviceStatusData.pumpData?.reservoir ?: -1.0
+            if (config.AAPSCLIENT) processedDeviceStatusData.pumpData?.reservoir ?: -1.0
             else reservoirInUnits.toDouble()
 
-    override val batteryLevel: Int
-        get() = batteryPercent
+    override val batteryLevel: Int? get() = batteryPercent
 
     override fun deliverTreatment(detailedBolusInfo: DetailedBolusInfo): PumpEnactResult {
-        val result = PumpEnactResult(injector)
+        // Insulin value must be greater than 0
+        require(detailedBolusInfo.carbs == 0.0) { detailedBolusInfo.toString() }
+        require(detailedBolusInfo.insulin > 0) { detailedBolusInfo.toString() }
+
+        val result = pumpEnactResultProvider.get()
             .success(true)
             .bolusDelivered(detailedBolusInfo.insulin)
             .enacted(detailedBolusInfo.insulin > 0 || detailedBolusInfo.carbs > 0)
             .comment(rh.gs(app.aaps.core.ui.R.string.virtualpump_resultok))
-        val bolusingEvent = EventOverviewBolusProgress
-        bolusingEvent.t = EventOverviewBolusProgress.Treatment(0.0, 0, detailedBolusInfo.bolusType == DetailedBolusInfo.BolusType.SMB, detailedBolusInfo.id)
         var delivering = 0.0
         while (delivering < detailedBolusInfo.insulin) {
             SystemClock.sleep(200)
-            bolusingEvent.status = rh.gs(app.aaps.core.ui.R.string.bolus_delivering, delivering)
-            bolusingEvent.percent = min((delivering / detailedBolusInfo.insulin * 100).toInt(), 100)
-            rxBus.send(bolusingEvent)
+            rxBus.send(EventOverviewBolusProgress(rh, delivering, id = detailedBolusInfo.id))
             delivering += 0.1
             if (BolusProgressData.stopPressed)
-                return PumpEnactResult(injector)
+                return pumpEnactResultProvider.get()
                     .success(false)
                     .enacted(false)
                     .comment(rh.gs(app.aaps.core.ui.R.string.stop))
         }
         SystemClock.sleep(200)
-        bolusingEvent.status = rh.gs(app.aaps.core.ui.R.string.bolus_delivered_successfully, detailedBolusInfo.insulin)
-        bolusingEvent.percent = 100
-        rxBus.send(bolusingEvent)
+        rxBus.send(EventOverviewBolusProgress(rh, percent = 100, id = detailedBolusInfo.id))
         SystemClock.sleep(1000)
         aapsLogger.debug(LTag.PUMP, "Delivering treatment insulin: " + detailedBolusInfo.insulin + "U carbs: " + detailedBolusInfo.carbs + "g " + result)
         rxBus.send(EventVirtualPumpUpdateGui())
         lastDataTime = System.currentTimeMillis()
         if (detailedBolusInfo.insulin > 0) {
-            if (config.NSCLIENT) // do not store pump serial (record will not be marked PH)
-                persistenceLayer.insertOrUpdateBolus(detailedBolusInfo.createBolus())
+            if (config.AAPSCLIENT) // do not store pump serial (record will not be marked PH)
+                disposable += persistenceLayer.insertOrUpdateBolus(
+                    bolus = detailedBolusInfo.createBolus(),
+                    action = Action.BOLUS,
+                    source = Sources.Pump
+                ).subscribe()
             else
                 pumpSync.syncBolusWithPumpId(
                     timestamp = detailedBolusInfo.timestamp,
@@ -227,7 +224,7 @@ open class VirtualPumpPlugin @Inject constructor(
 
     override fun stopBolusDelivering() {}
     override fun setTempBasalAbsolute(absoluteRate: Double, durationInMinutes: Int, profile: Profile, enforceNew: Boolean, tbrType: PumpSync.TemporaryBasalType): PumpEnactResult {
-        val result = PumpEnactResult(injector)
+        val result = pumpEnactResultProvider.get()
         result.success = true
         result.enacted = true
         result.isTempCancel = false
@@ -251,7 +248,7 @@ open class VirtualPumpPlugin @Inject constructor(
     }
 
     override fun setTempBasalPercent(percent: Int, durationInMinutes: Int, profile: Profile, enforceNew: Boolean, tbrType: PumpSync.TemporaryBasalType): PumpEnactResult {
-        val result = PumpEnactResult(injector)
+        val result = pumpEnactResultProvider.get()
         result.success = true
         result.enacted = true
         result.percent = percent
@@ -300,7 +297,7 @@ open class VirtualPumpPlugin @Inject constructor(
     }
 
     override fun cancelTempBasal(enforceNew: Boolean): PumpEnactResult {
-        val result = PumpEnactResult(injector)
+        val result = pumpEnactResultProvider.get()
         result.success = true
         result.isTempCancel = true
         result.comment = rh.gs(app.aaps.core.ui.R.string.virtualpump_resultok)
@@ -320,7 +317,7 @@ open class VirtualPumpPlugin @Inject constructor(
     }
 
     override fun cancelExtendedBolus(): PumpEnactResult {
-        val result = PumpEnactResult(injector)
+        val result = pumpEnactResultProvider.get()
         if (pumpSync.expectedPumpState().extendedBolus != null) {
             pumpSync.syncStopExtendedBolusWithPumpId(
                 timestamp = dateUtil.now(),
@@ -339,59 +336,13 @@ open class VirtualPumpPlugin @Inject constructor(
         return result
     }
 
-    override fun getJSONStatus(profile: Profile, profileName: String, version: String): JSONObject {
-        val now = System.currentTimeMillis()
-        if (!sp.getBoolean(app.aaps.core.utils.R.string.key_virtual_pump_upload_status, false)) {
-            return JSONObject()
-        }
-        val pump = JSONObject()
-        val battery = JSONObject()
-        val status = JSONObject()
-        val extended = JSONObject()
-        try {
-            battery.put("percent", batteryPercent)
-            status.put("status", "normal")
-            extended.put("Version", version)
-            try {
-                extended.put("ActiveProfile", profileName)
-            } catch (ignored: Exception) {
-            }
-            val tb = iobCobCalculator.getTempBasal(now)
-            if (tb != null) {
-                extended.put("TempBasalAbsoluteRate", tb.convertedToAbsolute(now, profile))
-                extended.put("TempBasalStart", dateUtil.dateAndTimeString(tb.timestamp))
-                extended.put("TempBasalRemaining", tb.plannedRemainingMinutes)
-            }
-            val eb = iobCobCalculator.getExtendedBolus(now)
-            if (eb != null) {
-                extended.put("ExtendedBolusAbsoluteRate", eb.rate)
-                extended.put("ExtendedBolusStart", dateUtil.dateAndTimeString(eb.timestamp))
-                extended.put("ExtendedBolusRemaining", eb.plannedRemainingMinutes)
-            }
-            status.put("timestamp", dateUtil.toISOString(now))
-            pump.put("battery", battery)
-            pump.put("status", status)
-            pump.put("extended", extended)
-            pump.put("reservoir", reservoirInUnits)
-            pump.put("clock", dateUtil.toISOString(now))
-        } catch (e: JSONException) {
-            aapsLogger.error("Unhandled exception", e)
-        }
-        return pump
-    }
-
-    override fun manufacturer(): ManufacturerType = pumpDescription.pumpType.manufacturer ?: ManufacturerType.AAPS
-
+    override fun manufacturer(): ManufacturerType = pumpDescription.pumpType.manufacturer()
     override fun model(): PumpType = pumpDescription.pumpType
-
     override fun serialNumber(): String = InstanceId.instanceId
-
-    override fun shortStatus(veryShort: Boolean): String = "Virtual Pump"
-
     override fun canHandleDST(): Boolean = true
 
     fun refreshConfiguration() {
-        val pumpType = sp.getString(app.aaps.core.utils.R.string.key_virtualpump_type, PumpType.GENERIC_AAPS.description)
+        val pumpType = preferences.get(StringKey.VirtualPumpType)
         val pumpTypeNew = PumpType.getByDescription(pumpType)
         aapsLogger.debug(LTag.PUMP, "Pump in configuration: $pumpType, PumpType object: $pumpTypeNew")
         if (this.pumpType == pumpTypeNew) return
@@ -401,4 +352,25 @@ open class VirtualPumpPlugin @Inject constructor(
     }
 
     override fun timezoneOrDSTChanged(timeChangeType: TimeChangeType) {}
+
+    override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {
+        if (requiredKey != null) return
+        val entries = mutableListOf<CharSequence>()
+            .also { entries ->
+                PumpType.entries.forEach {
+                    if (it.description != "USER") entries.add(it.description)
+                }
+            }
+            .sortedWith(compareBy { it.toString() })
+            .toTypedArray()
+        val category = PreferenceCategory(context)
+        parent.addPreference(category)
+        category.apply {
+            key = "virtual_pump_settings"
+            title = rh.gs(R.string.virtualpump_settings)
+            initialExpandedChildrenCount = 0
+            addPreference(AdaptiveListPreference(ctx = context, stringKey = StringKey.VirtualPumpType, title = R.string.virtual_pump_type, entries = entries, entryValues = entries))
+            addPreference(AdaptiveSwitchPreference(ctx = context, booleanKey = BooleanKey.VirtualPumpStatusUpload, title = app.aaps.core.ui.R.string.virtualpump_uploadstatus_title))
+        }
+    }
 }

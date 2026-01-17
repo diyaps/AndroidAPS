@@ -1,19 +1,22 @@
 package app.aaps.plugins.automation.actions
 
-import app.aaps.core.interfaces.db.GlucoseUnit
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.IDs
+import app.aaps.core.data.model.TT
+import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.queue.Callback
-import app.aaps.database.entities.TemporaryTarget
-import app.aaps.database.impl.transactions.InsertAndCancelCurrentTemporaryTargetTransaction
-import app.aaps.database.impl.transactions.Transaction
 import app.aaps.plugins.automation.R
 import app.aaps.plugins.automation.elements.InputDuration
 import app.aaps.plugins.automation.elements.InputTempTarget
-import io.reactivex.rxjava3.core.Single
 import com.google.common.truth.Truth.assertThat
+import io.reactivex.rxjava3.core.Single
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito
-import org.mockito.Mockito.`when`
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.skyscreamer.jsonassert.JSONAssert
 
 class ActionStartTempTargetTest : ActionsTestBase() {
@@ -22,7 +25,7 @@ class ActionStartTempTargetTest : ActionsTestBase() {
 
     @BeforeEach
     fun setup() {
-        `when`(rh.gs(R.string.starttemptarget)).thenReturn("Start temp target")
+        whenever(rh.gs(R.string.starttemptarget)).thenReturn("Start temp target")
 
         sut = ActionStartTempTarget(injector)
     }
@@ -39,40 +42,39 @@ class ActionStartTempTargetTest : ActionsTestBase() {
     }
 
     @Test fun iconTest() {
-        assertThat(sut.icon()).isEqualTo(app.aaps.core.main.R.drawable.ic_temptarget_high)
+        assertThat(sut.icon()).isEqualTo(app.aaps.core.objects.R.drawable.ic_temptarget_high_24dp)
     }
 
     @Test fun doActionTest() {
 
-        val expectedTarget = TemporaryTarget(
+        val expectedTarget = TT(
             id = 0,
             version = 0,
             dateCreated = -1,
             isValid = true,
             referenceId = null,
-            interfaceIDs_backing = null,
+            ids = IDs(),
             timestamp = 0,
             utcOffset = 0,
-            reason = TemporaryTarget.Reason.AUTOMATION,
+            reason = TT.Reason.AUTOMATION,
             highTarget = 110.0,
             lowTarget = 110.0,
             duration = 1800000
         )
 
-        val inserted = mutableListOf<TemporaryTarget>().apply {
+        val inserted = mutableListOf<TT>().apply {
             add(expectedTarget)
         }
 
-        val updated = mutableListOf<TemporaryTarget>().apply {
+        val updated = mutableListOf<TT>().apply {
         }
 
-        `when`(
-            repository.runTransactionForResult(argThatKotlin<InsertAndCancelCurrentTemporaryTargetTransaction> {
-                it.temporaryTarget
-                    .copy(timestamp = expectedTarget.timestamp, utcOffset = expectedTarget.utcOffset) // those can be different
+        whenever(
+            persistenceLayer.insertAndCancelCurrentTemporaryTarget(argThat {
+                copy(timestamp = expectedTarget.timestamp, utcOffset = expectedTarget.utcOffset) // those can be different
                     .contentEqualsTo(expectedTarget)
-            })
-        ).thenReturn(Single.just(InsertAndCancelCurrentTemporaryTargetTransaction.TransactionResult().apply {
+            }, anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
+        ).thenReturn(Single.just(PersistenceLayer.TransactionResult<TT>().apply {
             inserted.addAll(inserted)
             updated.addAll(updated)
         }))
@@ -82,7 +84,7 @@ class ActionStartTempTargetTest : ActionsTestBase() {
                 assertThat(result.success).isTrue()
             }
         })
-        Mockito.verify(repository, Mockito.times(1)).runTransactionForResult(anyObject<Transaction<InsertAndCancelCurrentTemporaryTargetTransaction.TransactionResult>>())
+        verify(persistenceLayer, times(1)).insertAndCancelCurrentTemporaryTarget(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
     }
 
     @Test fun hasDialogTest() {

@@ -7,13 +7,14 @@ import app.aaps.core.interfaces.pump.PumpSync
 
 interface CommandQueue {
 
+    var waitingForDisconnect: Boolean
+
     fun isRunning(type: Command.CommandType): Boolean
     fun pickup()
     fun clear()
     fun size(): Int
     fun performing(): Command?
     fun resetPerforming()
-    fun independentConnect(reason: String, callback: Callback?)
     fun bolusInQueue(): Boolean
     fun bolus(detailedBolusInfo: DetailedBolusInfo, callback: Callback?): Boolean
     fun cancelAllBoluses(id: Long?)
@@ -23,7 +24,7 @@ interface CommandQueue {
     fun tempBasalAbsolute(absoluteRate: Double, durationInMinutes: Int, enforceNew: Boolean, profile: Profile, tbrType: PumpSync.TemporaryBasalType, callback: Callback?): Boolean
     fun tempBasalPercent(percent: Int, durationInMinutes: Int, enforceNew: Boolean, profile: Profile, tbrType: PumpSync.TemporaryBasalType, callback: Callback?): Boolean
     fun extendedBolus(insulin: Double, durationInMinutes: Int, callback: Callback?): Boolean
-    fun cancelTempBasal(enforceNew: Boolean, callback: Callback?): Boolean
+    fun cancelTempBasal(enforceNew: Boolean, autoForced: Boolean = false, callback: Callback?): Boolean
     fun cancelExtended(callback: Callback?): Boolean
     fun readStatus(reason: String, callback: Callback?): Boolean
     fun statusInQueue(): Boolean

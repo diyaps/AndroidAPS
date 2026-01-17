@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- RL keys -->
+    <!-- PumpDeviceState -->
     <!-- RL BLE Config -->
     <string name="riley_link_ble_config_button_scan_start">Pretraži</string>
     <string name="riley_link_ble_config_scan_stop">Zaustavi</string>

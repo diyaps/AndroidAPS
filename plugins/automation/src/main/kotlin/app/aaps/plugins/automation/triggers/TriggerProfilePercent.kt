@@ -2,7 +2,7 @@ package app.aaps.plugins.automation.triggers
 
 import android.widget.LinearLayout
 import app.aaps.core.interfaces.logging.LTag
-import app.aaps.core.main.profile.ProfileSealed
+import app.aaps.core.objects.profile.ProfileSealed
 import app.aaps.core.utils.JsonHelper
 import app.aaps.plugins.automation.R
 import app.aaps.plugins.automation.elements.Comparator
@@ -13,6 +13,7 @@ import app.aaps.plugins.automation.elements.StaticLabel
 import dagger.android.HasAndroidInjector
 import org.json.JSONObject
 import java.util.Optional
+import kotlin.math.roundToInt
 
 class TriggerProfilePercent(injector: HasAndroidInjector) : Trigger(injector) {
 
@@ -54,13 +55,13 @@ class TriggerProfilePercent(injector: HasAndroidInjector) : Trigger(injector) {
             return false
         }
         if (profile is ProfileSealed.EPS) {
-            if (comparator.value.check(profile.value.originalPercentage.toDouble(), pct.value)) {
+            if (comparator.value.check(profile.value.originalPercentage, pct.value.roundToInt())) {
                 aapsLogger.debug(LTag.AUTOMATION, "Ready for execution: " + friendlyDescription())
                 return true
             }
         }
         if (profile is ProfileSealed.Pure) {
-            if (comparator.value.check(100.0, pct.value)) {
+            if (comparator.value.check(100, pct.value.roundToInt())) {
                 aapsLogger.debug(LTag.AUTOMATION, "Ready for execution: " + friendlyDescription())
                 return true
             }

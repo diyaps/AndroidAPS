@@ -1,41 +1,46 @@
 package app.aaps.plugins.constraints.dstHelper
 
+import app.aaps.core.data.model.RM
+import app.aaps.core.data.plugin.PluginType
+import app.aaps.core.data.time.T
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.aps.Loop
-import app.aaps.core.interfaces.constraints.Constraint
-import app.aaps.core.interfaces.constraints.PluginConstraints
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.plugin.ActivePlugin
-import app.aaps.core.interfaces.plugin.PluginBase
+import app.aaps.core.interfaces.plugin.PluginBaseWithPreferences
 import app.aaps.core.interfaces.plugin.PluginDescription
-import app.aaps.core.interfaces.plugin.PluginType
+import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.resources.ResourceHelper
-import app.aaps.core.interfaces.sharedPreferences.SP
-import app.aaps.core.interfaces.utils.T
+import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.plugins.constraints.R
-import dagger.android.HasAndroidInjector
+import app.aaps.plugins.constraints.dstHelper.keys.DstHelperLongKey
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DstHelperPlugin @Inject constructor(
-    injector: HasAndroidInjector,
     aapsLogger: AAPSLogger,
     rh: ResourceHelper,
-    private val sp: SP,
+    preferences: Preferences,
     private val activePlugin: ActivePlugin,
-    private val loop: Loop
-) : PluginBase(
-    PluginDescription()
-        .mainType(PluginType.CONSTRAINTS)
+    private val uiInteraction: UiInteraction,
+    private val loop: Loop,
+    private val profileFunction: ProfileFunction
+) : PluginBaseWithPreferences(
+    pluginDescription = PluginDescription()
+        .mainType(PluginType.GENERAL)
         .neverVisible(true)
         .alwaysEnabled(true)
-        .showInList(false)
+        .showInList { false }
         .pluginName(R.string.dst_plugin_name),
-    aapsLogger, rh, injector
-), PluginConstraints {
+    ownPreferences = listOf(DstHelperLongKey::class.java),
+    aapsLogger, rh, preferences
+) {
 
     companion object {
 
@@ -44,48 +49,46 @@ class DstHelperPlugin @Inject constructor(
     }
 
     //Return false if time to DST change happened in the last 3 hours.
-    override fun isLoopInvocationAllowed(value: Constraint<Boolean>): Constraint<Boolean> {
+    fun dstCheck() {
         val pump = activePlugin.activePump
-        if (pump.canHandleDST()) {
-            aapsLogger.debug(LTag.CONSTRAINTS, "Pump can handle DST")
-            return value
-        }
+        if (pump.canHandleDST()) return
         val cal = Calendar.getInstance()
         if (willBeDST(cal)) {
-            val snoozedTo: Long = sp.getLong(R.string.key_snooze_dst_in24h, 0L)
+            val snoozedTo: Long = preferences.get(DstHelperLongKey.SnoozeDstIn24h)
             if (snoozedTo == 0L || System.currentTimeMillis() > snoozedTo) {
-                activePlugin.activeOverview.addNotification(Notification.DST_IN_24H, rh.gs(R.string.dst_in_24h_warning), Notification.LOW, app.aaps.core.ui.R.string.snooze) {
-                    sp.putLong(R.string.key_snooze_dst_in24h, System.currentTimeMillis() + T.hours(24).msecs())
-                }
+                uiInteraction.addNotification(Notification.DST_IN_24H, rh.gs(R.string.dst_in_24h_warning), Notification.LOW, app.aaps.core.ui.R.string.snooze, {
+                    preferences.put(DstHelperLongKey.SnoozeDstIn24h, System.currentTimeMillis() + T.hours(24).msecs())
+                }, null)
             }
         }
-        if (!value.value()) {
-            aapsLogger.debug(LTag.CONSTRAINTS, "Already not allowed - don't check further")
-            return value
-        }
         if (wasDST(cal)) {
-            if (!loop.isSuspended) {
-                val snoozedTo: Long = sp.getLong(R.string.key_snooze_loop_disabled, 0L)
+            if (!loop.runningMode.isSuspended()) {
+                val profile = profileFunction.getProfile() ?: return
+                loop.handleRunningModeChange(newRM = RM.Mode.SUSPENDED_BY_DST, durationInMinutes = T.hours((-DISABLE_TIME_FRAME_HOURS).toLong()).mins().toInt(), action = Action.SUSPEND, source = Sources.Aaps, profile = profile)
+                val snoozedTo: Long = preferences.get(DstHelperLongKey.SnoozeLoopDisabled)
                 if (snoozedTo == 0L || System.currentTimeMillis() > snoozedTo) {
-                    activePlugin.activeOverview.addNotification(Notification.DST_LOOP_DISABLED, rh.gs(R.string.dst_loop_disabled_warning), Notification.LOW, app.aaps.core.ui.R.string.snooze) {
-                        sp.putLong(R.string.key_snooze_loop_disabled, System.currentTimeMillis() + T.hours(24).msecs())
-                    }
+                    uiInteraction.addNotification(
+                        id = Notification.DST_LOOP_DISABLED,
+                        text = rh.gs(R.string.dst_loop_disabled_warning),
+                        level = Notification.LOW,
+                        actionButtonId = app.aaps.core.ui.R.string.snooze,
+                        action = { preferences.put(DstHelperLongKey.SnoozeLoopDisabled, System.currentTimeMillis() + T.hours(24).msecs()) },
+                        validityCheck = null
+                    )
                 }
             } else {
                 aapsLogger.debug(LTag.CONSTRAINTS, "Loop already suspended")
             }
-            value.set(false, "DST in last 3 hours.", this)
         }
-        return value
     }
 
-    fun wasDST(now: Calendar): Boolean {
+    internal fun wasDST(now: Calendar): Boolean {
         val ago = now.clone() as Calendar
         ago.add(Calendar.HOUR, DISABLE_TIME_FRAME_HOURS)
         return now[Calendar.DST_OFFSET] != ago[Calendar.DST_OFFSET]
     }
 
-    fun willBeDST(now: Calendar): Boolean {
+    internal fun willBeDST(now: Calendar): Boolean {
         val ago = now.clone() as Calendar
         ago.add(Calendar.HOUR, WARN_PRIOR_TIME_FRAME_HOURS)
         return now[Calendar.DST_OFFSET] != ago[Calendar.DST_OFFSET]

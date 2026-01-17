@@ -1,95 +1,97 @@
 package app.aaps.plugins.sync.nsclientV3
 
+import app.aaps.core.data.model.BCR
+import app.aaps.core.data.model.BS
+import app.aaps.core.data.model.CA
+import app.aaps.core.data.model.DS
+import app.aaps.core.data.model.EB
+import app.aaps.core.data.model.EPS
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.GV
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.ICfg
+import app.aaps.core.data.model.IDs
+import app.aaps.core.data.model.PS
+import app.aaps.core.data.model.RM
+import app.aaps.core.data.model.SourceSensor
+import app.aaps.core.data.model.TB
+import app.aaps.core.data.model.TE
+import app.aaps.core.data.model.TT
+import app.aaps.core.data.model.TrendArrow
+import app.aaps.core.data.plugin.PluginType
+import app.aaps.core.data.pump.defs.PumpType
+import app.aaps.core.data.time.T
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.insulin.Insulin
-import app.aaps.core.interfaces.logging.UserEntryLogger
-import app.aaps.core.interfaces.nsclient.StoreDataForDb
+import app.aaps.core.interfaces.logging.L
+import app.aaps.core.interfaces.nsclient.NSAlarm
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.pump.VirtualPump
 import app.aaps.core.interfaces.source.NSClientSource
 import app.aaps.core.interfaces.sync.DataSyncSelector
-import app.aaps.core.interfaces.ui.UiInteraction
-import app.aaps.core.main.extensions.fromConstant
+import app.aaps.core.interfaces.sync.NsClient
+import app.aaps.core.keys.BooleanKey
 import app.aaps.core.nssdk.interfaces.NSAndroidClient
 import app.aaps.core.nssdk.localmodel.treatment.CreateUpdateResponse
-import app.aaps.database.entities.Bolus
-import app.aaps.database.entities.BolusCalculatorResult
-import app.aaps.database.entities.Carbs
-import app.aaps.database.entities.DeviceStatus
-import app.aaps.database.entities.EffectiveProfileSwitch
-import app.aaps.database.entities.ExtendedBolus
-import app.aaps.database.entities.Food
-import app.aaps.database.entities.GlucoseValue
-import app.aaps.database.entities.OfflineEvent
-import app.aaps.database.entities.ProfileSwitch
-import app.aaps.database.entities.TemporaryBasal
-import app.aaps.database.entities.TemporaryTarget
-import app.aaps.database.entities.TherapyEvent
-import app.aaps.database.entities.embedments.InsulinConfiguration
-import app.aaps.database.entities.embedments.InterfaceIDs
-import app.aaps.database.impl.AppRepository
+import app.aaps.core.nssdk.remotemodel.LastModified
 import app.aaps.plugins.sync.nsShared.StoreDataForDbImpl
 import app.aaps.plugins.sync.nsclient.ReceiverDelegate
-import app.aaps.plugins.sync.nsclient.extensions.fromConstant
+import app.aaps.plugins.sync.nsclientV3.keys.NsclientStringKey
+import app.aaps.plugins.sync.nsclientV3.services.NSClientV3Service
 import app.aaps.shared.tests.TestBaseWithProfile
 import com.google.common.truth.Truth.assertThat
-import dagger.android.AndroidInjector
-import dagger.android.HasAndroidInjector
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
-import org.mockito.Mockito
-import org.mockito.Mockito.anyLong
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 @Suppress("SpellCheckingInspection")
 internal class NSClientV3PluginTest : TestBaseWithProfile() {
 
     @Mock lateinit var receiverDelegate: ReceiverDelegate
-    @Mock lateinit var uiInteraction: UiInteraction
     @Mock lateinit var dataSyncSelectorV3: DataSyncSelectorV3
     @Mock lateinit var nsAndroidClient: NSAndroidClient
-    @Mock lateinit var uel: UserEntryLogger
     @Mock lateinit var nsClientSource: NSClientSource
     @Mock lateinit var virtualPump: VirtualPump
     @Mock lateinit var mockedProfileFunction: ProfileFunction
-    @Mock lateinit var repository: AppRepository
     @Mock lateinit var persistenceLayer: PersistenceLayer
     @Mock lateinit var insulin: Insulin
+    @Mock lateinit var l: L
+    @Mock lateinit var nsClientV3Service: NSClientV3Service
 
-    private lateinit var storeDataForDb: StoreDataForDb
+    private lateinit var storeDataForDb: StoreDataForDbImpl
     private lateinit var sut: NSClientV3Plugin
 
-    private val injector = HasAndroidInjector {
-        AndroidInjector {
-        }
-    }
-
-    private var insulinConfiguration: InsulinConfiguration = InsulinConfiguration("Insulin", 360 * 60 * 1000, 60 * 60 * 1000)
-
-    @BeforeEach
-    fun mock() {
-        Mockito.`when`(insulin.insulinConfiguration).thenReturn(insulinConfiguration)
-        Mockito.`when`(activePlugin.activeInsulin).thenReturn(insulin)
-    }
+    private var insulinConfiguration: ICfg = ICfg("Insulin", 360 * 60 * 1000, 60 * 60 * 1000)
 
     @BeforeEach
     fun prepare() {
-        storeDataForDb = StoreDataForDbImpl(aapsLogger, rxBus, repository, sp, uel, dateUtil, config, nsClientSource, virtualPump, uiInteraction)
+        whenever(insulin.iCfg).thenReturn(insulinConfiguration)
+        whenever(activePlugin.activeInsulin).thenReturn(insulin)
+        storeDataForDb = StoreDataForDbImpl(aapsLogger, rxBus, persistenceLayer, preferences, config, nsClientSource, virtualPump)
         sut =
             NSClientV3Plugin(
-                injector, aapsLogger, aapsSchedulers, rxBus, rh, context, fabricPrivacy,
-                sp, receiverDelegate, config, dateUtil, dataSyncSelectorV3, persistenceLayer,
-                nsClientSource, storeDataForDb, decimalFormatter
+                aapsLogger, rh, preferences, aapsSchedulers, rxBus, context, fabricPrivacy,
+                receiverDelegate, config, dateUtil, dataSyncSelectorV3, persistenceLayer,
+                nsClientSource, storeDataForDb, decimalFormatter, l
             )
         sut.nsAndroidClient = nsAndroidClient
-        Mockito.`when`(mockedProfileFunction.getProfile(anyLong())).thenReturn(validProfile)
+        sut.nsClientV3Service = nsClientV3Service
+        whenever(mockedProfileFunction.getProfile(anyLong())).thenReturn(validProfile)
     }
 
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddDeviceStatus() = runTest {
-        val deviceStatus = DeviceStatus(
+        val deviceStatus = DS(
             timestamp = 10000,
             suggested = "{\"temp\":\"absolute\",\"bg\":133,\"tick\":-6,\"eventualBG\":67,\"targetBG\":99,\"insulinReq\":0,\"deliverAt\":\"2023-01-02T15:29:33.374Z\",\"sensitivityRatio\":1,\"variable_sens\":97.5,\"predBGs\":{\"IOB\":[133,127,121,116,111,106,101,97,93,89,85,81,78,75,72,69,67,65,62,60,58,57,55,54,52,51,50,49,48,47,46,45,45,44,43,43,42,42,41,41,41,41,40,40,40,40,39],\"ZT\":[133,127,121,115,110,105,101,96,92,88,84,81,77,74,71,69,66,64,62,59,58,56,54,53,51,50,49,48,47,46,45,44,44,43,42,42,41,41,40,40,40,39,39,39,39,39,39,39],\"UAM\":[133,127,121,115,110,105,101,96,92,88,84,81,77,74,71,69,66,64,62,59,58,56,54,53,51,50,49,48,47,46,45,44,44,43,42,42,41,41,40,40,40,39]},\"reason\":\"COB: 0, Dev: 0.1, BGI: -0.3, ISF: 5.4, CR: 13, Target: 5.5, minPredBG 2.2, minGuardBG 2.1, IOBpredBG 2.2, UAMpredBG 2.2; minGuardBG 2.1<4.0\",\"COB\":0,\"IOB\":0.692,\"duration\":90,\"rate\":0,\"timestamp\":\"2023-01-02T15:29:39.460Z\"}",
             iob = "{\"iob\":0.692,\"basaliob\":-0.411,\"activity\":0.0126,\"time\":\"2023-01-02T15:29:39.460Z\"}",
@@ -104,11 +106,11 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
         )
         val dataPair = DataSyncSelector.PairDeviceStatus(deviceStatus, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createDeviceStatus(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createDeviceStatus(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("devicestatus", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdDeviceStatuses).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.createDeviceStatus(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.createDeviceStatus(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsAdd("devicestatus", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdDeviceStatuses).hasSize(2) // still only 1
     }
@@ -116,25 +118,23 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddEntries() = runTest {
-        val glucoseValue = GlucoseValue(
+        val glucoseValue = GV(
             timestamp = 10000,
             isValid = true,
             raw = 101.0,
             value = 99.0,
-            trendArrow = GlucoseValue.TrendArrow.DOUBLE_UP,
+            trendArrow = TrendArrow.DOUBLE_UP,
             noise = 1.0,
-            sourceSensor = GlucoseValue.SourceSensor.DEXCOM_G4_WIXEL,
-            interfaceIDs_backing = InterfaceIDs(
-                nightscoutId = "nightscoutId"
-            )
+            sourceSensor = SourceSensor.DEXCOM_G6_NATIVE,
+            ids = IDs(nightscoutId = "nightscoutId")
         )
         val dataPair = DataSyncSelector.PairGlucoseValue(glucoseValue, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createSgv(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createSgv(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("entries", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdGlucoseValues).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateSvg(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateSvg(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("entries", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdGlucoseValues).hasSize(2)
     }
@@ -142,7 +142,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddFood() = runTest {
-        val food = Food(
+        val food = FD(
             isValid = true,
             name = "name",
             category = "category",
@@ -154,17 +154,17 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
             energy = 23,
             unit = "g",
             gi = 25,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId"
             )
         )
         val dataPair = DataSyncSelector.PairFood(food, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createFood(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createFood(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("food", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdFoods).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateFood(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateFood(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("food", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdFoods).hasSize(2)
     }
@@ -172,27 +172,27 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddBolus() = runTest {
-        val bolus = Bolus(
+        val bolus = BS(
             timestamp = 10000,
             isValid = true,
             amount = 1.0,
-            type = Bolus.Type.SMB,
+            type = BS.Type.SMB,
             notes = "aaaa",
             isBasalInsulin = false,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairBolus(bolus, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdBoluses).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdBoluses).hasSize(2)
     }
@@ -200,26 +200,26 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddCarbs() = runTest {
-        val carbs = Carbs(
+        val carbs = CA(
             timestamp = 10000,
             isValid = true,
             amount = 1.0,
             duration = 0,
             notes = "aaaa",
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairCarbs(carbs, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdCarbs).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdCarbs).hasSize(2)
     }
@@ -227,7 +227,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddBolusCalculatorResult() = runTest {
-        val bolus = BolusCalculatorResult(
+        val bolus = BCR(
             timestamp = 10000,
             isValid = true,
             targetBGLow = 110.0,
@@ -259,20 +259,20 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
             percentageCorrection = 70,
             profileName = " sss",
             note = "ddd",
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairBolusCalculatorResult(bolus, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdBolusCalculatorResults).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdBolusCalculatorResults).hasSize(2)
     }
@@ -280,37 +280,37 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddEffectiveProfileSwitch() = runTest {
-        val profileSwitch = EffectiveProfileSwitch(
+        val profileSwitch = EPS(
             timestamp = 10000,
             isValid = true,
             basalBlocks = validProfile.basalBlocks,
             isfBlocks = validProfile.isfBlocks,
             icBlocks = validProfile.icBlocks,
             targetBlocks = validProfile.targetBlocks,
-            glucoseUnit = EffectiveProfileSwitch.GlucoseUnit.fromConstant(validProfile.units),
+            glucoseUnit = validProfile.units,
             originalProfileName = "SomeProfile",
             originalCustomizedName = "SomeProfile (150%, 1h)",
             originalTimeshift = 3600000,
             originalPercentage = 150,
             originalDuration = 3600000,
             originalEnd = 0,
-            insulinConfiguration = activePlugin.activeInsulin.insulinConfiguration.also {
+            iCfg = activePlugin.activeInsulin.iCfg.also {
                 it.insulinEndTime = (validProfile.dia * 3600 * 1000).toLong()
             },
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairEffectiveProfileSwitch(profileSwitch, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdEffectiveProfileSwitches).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdEffectiveProfileSwitches).hasSize(2)
     }
@@ -318,35 +318,35 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddProfileSwitch() = runTest {
-        val profileSwitch = ProfileSwitch(
+        val profileSwitch = PS(
             timestamp = 10000,
             isValid = true,
             basalBlocks = validProfile.basalBlocks,
             isfBlocks = validProfile.isfBlocks,
             icBlocks = validProfile.icBlocks,
             targetBlocks = validProfile.targetBlocks,
-            glucoseUnit = ProfileSwitch.GlucoseUnit.fromConstant(validProfile.units),
+            glucoseUnit = validProfile.units,
             profileName = "SomeProfile",
             timeshift = 0,
             percentage = 100,
             duration = 0,
-            insulinConfiguration = activePlugin.activeInsulin.insulinConfiguration.also {
+            iCfg = activePlugin.activeInsulin.iCfg.also {
                 it.insulinEndTime = (validProfile.dia * 3600 * 1000).toLong()
             },
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairProfileSwitch(profileSwitch, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdProfileSwitches).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdProfileSwitches).hasSize(2)
     }
@@ -354,80 +354,80 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddExtendedBolus() = runTest {
-        val extendedBolus = ExtendedBolus(
+        val extendedBolus = EB(
             timestamp = 10000,
             isValid = true,
             amount = 2.0,
             isEmulatingTempBasal = false,
             duration = 3600000,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairExtendedBolus(extendedBolus, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3", validProfile)
         assertThat(storeDataForDb.nsIdExtendedBoluses).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3", validProfile)
         assertThat(storeDataForDb.nsIdExtendedBoluses).hasSize(2)
     }
 
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    fun nsAddOffilineEvent() = runTest {
-        val offlineEvent = OfflineEvent(
+    fun nsAddRunningModeTest() = runTest {
+        val runningMode = RM(
             timestamp = 10000,
             isValid = true,
-            reason = OfflineEvent.Reason.DISCONNECT_PUMP,
+            mode = RM.Mode.DISCONNECTED_PUMP,
             duration = 30000,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
-        val dataPair = DataSyncSelector.PairOfflineEvent(offlineEvent, 1000)
+        val dataPair = DataSyncSelector.PairRunningMode(runningMode, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
-        assertThat(storeDataForDb.nsIdOfflineEvents).hasSize(1)
+        assertThat(storeDataForDb.nsIdRunningModes).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
-        assertThat(storeDataForDb.nsIdOfflineEvents).hasSize(2)
+        assertThat(storeDataForDb.nsIdRunningModes).hasSize(2)
     }
 
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddTemporaryBasal() = runTest {
-        val temporaryBasal = TemporaryBasal(
+        val temporaryBasal = TB(
             timestamp = 10000,
             isValid = true,
-            type = TemporaryBasal.Type.NORMAL,
+            type = TB.Type.NORMAL,
             rate = 2.0,
             isAbsolute = true,
             duration = 3600000,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairTemporaryBasal(temporaryBasal, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3", validProfile)
         assertThat(storeDataForDb.nsIdTemporaryBasals).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3", validProfile)
         assertThat(storeDataForDb.nsIdTemporaryBasals).hasSize(2)
     }
@@ -435,27 +435,27 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddTemporaryTarget() = runTest {
-        val temporaryTarget = TemporaryTarget(
+        val temporaryTarget = TT(
             timestamp = 10000,
             isValid = true,
-            reason = TemporaryTarget.Reason.ACTIVITY,
+            reason = TT.Reason.ACTIVITY,
             highTarget = 100.0,
             lowTarget = 99.0,
             duration = 3600000,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairTemporaryTarget(temporaryTarget, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdTemporaryTargets).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdTemporaryTargets).hasSize(2)
     }
@@ -463,30 +463,30 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddTherapyEvent() = runTest {
-        val therapyEvent = TherapyEvent(
+        val therapyEvent = TE(
             timestamp = 10000,
             isValid = true,
-            type = TherapyEvent.Type.ANNOUNCEMENT,
+            type = TE.Type.ANNOUNCEMENT,
             note = "ccccc",
             enteredBy = "dddd",
             glucose = 101.0,
-            glucoseType = TherapyEvent.MeterType.FINGER,
-            glucoseUnit = TherapyEvent.GlucoseUnit.MGDL,
+            glucoseType = TE.MeterType.FINGER,
+            glucoseUnit = GlucoseUnit.MGDL,
             duration = 3600000,
-            interfaceIDs_backing = InterfaceIDs(
+            ids = IDs(
                 nightscoutId = "nightscoutId",
                 pumpId = 11000,
-                pumpType = InterfaceIDs.PumpType.DANA_I,
+                pumpType = PumpType.DANA_I,
                 pumpSerial = "bbbb"
             )
         )
         val dataPair = DataSyncSelector.PairTherapyEvent(therapyEvent, 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createTreatment(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdTherapyEvents).hasSize(1)
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdTherapyEvents).hasSize(2)
     }
@@ -495,16 +495,245 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddProfile() = runTest {
 
-        val dataPair = DataSyncSelector.PairProfileStore(getValidProfileStore().data, 1000)
+        val dataPair = DataSyncSelector.PairProfileStore(getValidProfileStore().getData(), 1000)
         // create
-        Mockito.`when`(nsAndroidClient.createProfileStore(anyObject())).thenReturn(CreateUpdateResponse(201, "aaa"))
+        whenever(nsAndroidClient.createProfileStore(anyOrNull())).thenReturn(CreateUpdateResponse(201, "aaa"))
         sut.nsAdd("profile", dataPair, "1/3")
         // verify(dataSyncSelectorV3, Times(1)).confirmLastProfileStore(1000)
         // verify(dataSyncSelectorV3, Times(1)).processChangedProfileStore()
         // update
-        Mockito.`when`(nsAndroidClient.updateTreatment(anyObject())).thenReturn(CreateUpdateResponse(200, "aaa"))
+        whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("profile", dataPair, "1/3")
         // verify(dataSyncSelectorV3, Times(2)).confirmLastProfileStore(1000)
         // verify(dataSyncSelectorV3, Times(2)).processChangedProfileStore()
+    }
+
+    @Test
+    fun preferenceScreenTest() {
+        val screen = preferenceManager.createPreferenceScreen(context)
+        sut.addPreferenceScreen(preferenceManager, screen, context, null)
+        assertThat(screen.preferenceCount).isGreaterThan(0)
+    }
+
+    @Test
+    fun `resetToFullSync should clear sync timestamps and reset initialLoadFinished flag`() {
+        // Arrange
+        // 1. Set the plugin's state to a "synced" status to ensure the reset works.
+        sut.initialLoadFinished = true
+        sut.lastLoadedSrvModified = LastModified(
+            LastModified.Collections().apply {
+                treatments = 1672531200000L // Jan 1, 2023
+                devicestatus = 1672531200000L
+                profile = 1672531200000L
+                foods = 1672531200000L
+                entries = 1672531200000L
+            }
+        )
+        sut.firstLoadContinueTimestamp = sut.lastLoadedSrvModified
+
+        // 2. Define the expected state after reset (an empty LastModified object as a JSON string).
+        val expectedEmptyLastModifiedJson = "{\"collections\":{}}"
+
+        // Act
+        sut.resetToFullSync()
+
+        // Assert
+        // 1. Verify the in-memory flags and objects are reset to their default states.
+        assertThat(sut.initialLoadFinished).isFalse()
+        assertThat(sut.fullSyncRequested).isTrue()
+        assertThat(sut.lastLoadedSrvModified.collections.treatments).isEqualTo(0L)
+        assertThat(sut.firstLoadContinueTimestamp.collections.treatments).isEqualTo(0L)
+
+        // 2. Verify that the empty state was written to preferences to make the reset persistent.
+        verify(preferences).put(NsclientStringKey.V3LastModified, expectedEmptyLastModifiedJson)
+        verify(dataSyncSelectorV3).resetToNextFullSync()
+    }
+
+    @Test
+    fun `isFirstLoad returns true when collection timestamp is 0`() {
+        // Arrange
+        // The plugin is initialized with lastLoadedSrvModified where all timestamps are 0L by default.
+        // So, no extra arrangement is needed.
+
+        // Act & Assert
+        // Verify that isFirstLoad returns true for all collections in the initial state.
+        assertThat(sut.isFirstLoad(NsClient.Collection.ENTRIES)).isTrue()
+        assertThat(sut.isFirstLoad(NsClient.Collection.TREATMENTS)).isTrue()
+        assertThat(sut.isFirstLoad(NsClient.Collection.FOODS)).isTrue()
+        assertThat(sut.isFirstLoad(NsClient.Collection.PROFILE)).isTrue()
+    }
+
+    @Test
+    fun `isFirstLoad returns false when collection timestamp is greater than 0`() {
+        // Arrange
+        // Set a "synced" state where all collection timestamps are non-zero.
+        val collectionsWithData =
+            LastModified.Collections().apply {
+                treatments = 1672531200000L // Jan 1, 2023
+                devicestatus = 1672531200000L
+                profile = 1672531200000L
+                foods = 1672531200000L
+                entries = 1672531200000L
+            }
+
+        sut.lastLoadedSrvModified = LastModified(collectionsWithData)
+
+        // Act & Assert
+        // Verify that isFirstLoad now returns false for all collections.
+        assertThat(sut.isFirstLoad(NsClient.Collection.ENTRIES)).isFalse()
+        assertThat(sut.isFirstLoad(NsClient.Collection.TREATMENTS)).isFalse()
+        assertThat(sut.isFirstLoad(NsClient.Collection.FOODS)).isFalse()
+        assertThat(sut.isFirstLoad(NsClient.Collection.PROFILE)).isFalse()
+    }
+
+    @Test
+    fun `isFirstLoad returns correct value for mixed state`() {
+        // Arrange
+        // Set a state where only Treatments and Profile have been synced. Entries and Foods have not.
+        val collectionsWithData = LastModified.Collections(
+            entries = 0L, // Not synced
+            treatments = 1672531200001L, // Synced
+            foods = 0L, // Not synced
+            profile = 1672531200003L // Synced
+        )
+        sut.lastLoadedSrvModified = LastModified(collectionsWithData)
+
+        // Act & Assert
+        // Verify the result for each collection individually.
+        assertThat(sut.isFirstLoad(NsClient.Collection.ENTRIES)).isTrue()
+        assertThat(sut.isFirstLoad(NsClient.Collection.TREATMENTS)).isFalse()
+        assertThat(sut.isFirstLoad(NsClient.Collection.FOODS)).isTrue()
+        assertThat(sut.isFirstLoad(NsClient.Collection.PROFILE)).isFalse()
+    }
+
+    @Test
+    fun `updateLatestBgReceivedIfNewer SETS timestamp during a first load`() {
+        // Arrange
+        // 1. Ensure isFirstLoad(ENTRIES) will return true. The default initial state is 0L, so no setup is needed.
+        val latestReceivedTimestamp = 1672531200000L // Jan 1, 2023
+        assertThat(sut.isFirstLoad(NsClient.Collection.ENTRIES)).isTrue()
+        assertThat(sut.firstLoadContinueTimestamp.collections.entries).isEqualTo(0L)
+
+        // Act
+        sut.updateLatestBgReceivedIfNewer(latestReceivedTimestamp)
+
+        // Assert
+        // Verify that the firstLoadContinueTimestamp for entries was updated.
+        assertThat(sut.firstLoadContinueTimestamp.collections.entries).isEqualTo(latestReceivedTimestamp)
+    }
+
+    @Test
+    fun `updateLatestBgReceivedIfNewer IGNORES timestamp after a first load`() {
+        // Arrange
+        // 1. Set a state where ENTRIES have already been synced.
+        val initialTimestamp = 1672531200000L
+        sut.lastLoadedSrvModified = LastModified(
+            LastModified.Collections(entries = initialTimestamp)
+        )
+        val newTimestamp = initialTimestamp + 1000L
+        assertThat(sut.isFirstLoad(NsClient.Collection.ENTRIES)).isFalse()
+
+        // Act
+        sut.updateLatestBgReceivedIfNewer(newTimestamp)
+
+        // Assert
+        // Verify that the firstLoadContinueTimestamp for entries remains unchanged (at its default 0L).
+        assertThat(sut.firstLoadContinueTimestamp.collections.entries).isEqualTo(0L)
+    }
+
+    @Test
+    fun `updateLatestTreatmentReceivedIfNewer SETS timestamp during a first load`() {
+        // Arrange
+        // 1. Ensure isFirstLoad(TREATMENTS) will return true.
+        val latestReceivedTimestamp = 1672541200000L
+        assertThat(sut.isFirstLoad(NsClient.Collection.TREATMENTS)).isTrue()
+        assertThat(sut.firstLoadContinueTimestamp.collections.treatments).isEqualTo(0L)
+
+        // Act
+        sut.updateLatestTreatmentReceivedIfNewer(latestReceivedTimestamp)
+
+        // Assert
+        // Verify that the firstLoadContinueTimestamp for treatments was updated.
+        assertThat(sut.firstLoadContinueTimestamp.collections.treatments).isEqualTo(latestReceivedTimestamp)
+    }
+
+    @Test
+    fun `updateLatestTreatmentReceivedIfNewer IGNORES timestamp after a first load`() {
+        // Arrange
+        // 1. Set a state where TREATMENTS have already been synced.
+        val initialTimestamp = 1672541200000L
+        sut.lastLoadedSrvModified = LastModified(
+            LastModified.Collections(treatments = initialTimestamp)
+        )
+        val newTimestamp = initialTimestamp + 1000L
+        assertThat(sut.isFirstLoad(NsClient.Collection.TREATMENTS)).isFalse()
+
+        // Act
+        sut.updateLatestTreatmentReceivedIfNewer(newTimestamp)
+
+        // Assert
+        // Verify that the firstLoadContinueTimestamp for treatments remains unchanged (at its default 0L).
+        assertThat(sut.firstLoadContinueTimestamp.collections.treatments).isEqualTo(0L)
+    }
+
+    @Test
+    fun `handleClearAlarm delegates to service when plugin and upload are enabled`() {
+        // Arrange
+        //1. Mock the original alarm object
+        val mockAlarm: NSAlarm = mock()
+        val silenceDuration = T.mins(15).msecs()
+        val lastModified = Json.encodeToString(LastModified.serializer(), LastModified(LastModified.Collections()))
+
+        // 2. Ensure both the plugin and the upload preference are enabled.
+        whenever(preferences.get(NsclientStringKey.V3LastModified)).thenReturn(lastModified)
+        whenever(preferences.get(BooleanKey.NsClientUploadData)).thenReturn(true)
+        whenever(receiverDelegate.blockingReason).thenReturn("Block")
+        sut.setPluginEnabledBlocking(PluginType.SYNC, true)
+
+        // Act
+        sut.handleClearAlarm(mockAlarm, silenceDuration)
+
+        // Assert
+        // Verify that the call was passed through to the nsClientV3Service with the correct parameters.
+        verify(nsClientV3Service).handleClearAlarm(mockAlarm, silenceDuration)
+        sut.setPluginEnabledBlocking(PluginType.SYNC, false)
+    }
+
+    @Test
+    fun `handleClearAlarm does nothing when plugin is disabled`() {
+        // Arrange
+        val mockAlarm: NSAlarm = mock()
+        val silenceDuration = T.mins(15).msecs()
+        val lastModified = Json.encodeToString(LastModified.serializer(), LastModified(LastModified.Collections()))
+
+        // 2. Ensure both the plugin and the upload preference are enabled.
+        whenever(preferences.get(NsclientStringKey.V3LastModified)).thenReturn(lastModified)
+        whenever(preferences.get(BooleanKey.NsClientUploadData)).thenReturn(true) // Upload is still enabled
+        whenever(receiverDelegate.blockingReason).thenReturn("Block")
+        sut.setPluginEnabledBlocking(PluginType.SYNC, false)
+
+        // Act
+        sut.handleClearAlarm(mockAlarm, silenceDuration)
+
+        // Assert
+        // Verify that the service was never called.
+        verify(nsClientV3Service, never()).handleClearAlarm(any(), any())
+    }
+
+    @Test
+    fun `handleClearAlarm does nothing and logs when upload is disabled`() {
+        // Arrange
+        val mockAlarm: NSAlarm = mock()
+        val silenceDuration = T.mins(15).msecs()
+
+        // 2. Ensure the plugin is enabled, but the upload preference is disabled.
+        whenever(preferences.get(BooleanKey.NsClientUploadData)).thenReturn(false)
+
+        // Act
+        sut.handleClearAlarm(mockAlarm, silenceDuration)
+
+        // Assert
+        // 1. Verify that the service was never called.
+        verify(nsClientV3Service, never()).handleClearAlarm(any(), any())
     }
 }

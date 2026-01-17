@@ -7,13 +7,15 @@
         android:entries="@array/complication_tap_action"
         android:entryValues="@array/complication_tap_action_values"
         android:key="@string/key_complication_tap_action"
-        android:summary="What dialog to show after tap on complication"
-        android:title="@string/pref_complication_tap_action" />
+        android:title="@string/pref_complication_tap_action"
+        android:summary="%s" />
 
     <CheckBoxPreference
         android:defaultValue="true"
         android:key="complication_unicode"
         android:summary="Use unicode special characters in complications."
+        android:summaryOn="@string/on"
+        android:summaryOff="@string/off"
         android:title="@string/pref_unicode_in_complications"
         app:wear_iconOff="@drawable/settings_off"
         app:wear_iconOn="@drawable/settings_on" />

@@ -2,9 +2,6 @@
 <resources>
     <string name="app_name">AAPS</string>
     <string name="label_actions_activity">AAPS</string>
-    <string name="label_watchface_large">AAPS(Gros)</string>
-    <string name="label_watchface_big_chart">AAPS(GrafGrossa)</string>
-    <string name="label_watchface_no_chart">AAPS(NoGraf)</string>
     <string name="label_watchface_circle">AAPS(Cercle)</string>
     <string name="label_watchface_digital_style">AAPS(DigitalStyle)</string>
     <string name="label_warning_sync">Cap dada!</string>
@@ -14,7 +11,6 @@
     <string name="msg_warning_sync">Cap dada rebuda des de %1$s! Comproveu si AAPS al telèfon envia dades al rellotge</string>
     <string name="msg_warning_old">Les dades d\'AAPS son antigues de %1$s! Comproveu el vostre sensor, xDrip+, NS, la configuració AAPS, etc!</string>
     <string name="pref_vibrate_on_bolus">Vibrar durant bolus</string>
-    <string name="pref_units_for_actions">Unitats per accions</string>
     <string name="pref_show_date">Mostrar data</string>
     <string name="pref_show_iob">Mostrar IOB</string>
     <string name="pref_show_cob">Mostrar COB</string>
@@ -41,10 +37,6 @@
     <string name="pref_quick_righty">Ràpid dreta</string>
     <string name="pref_quick_lefty">Ràpid esquerra</string>
     <string name="pref_modern_sparse">Dispers modern</string>
-    <string name="pref_low">Baix</string>
-    <string name="pref_medium">Mig</string>
-    <string name="pref_high">Alt</string>
-    <string name="pref_auto">Auto</string>
     <string name="pref_big_numbers">Números grossos</string>
     <string name="pref_ring_history">Historial Ring</string>
     <string name="pref_light_ring_history">Historial Ring Light</string>
@@ -69,13 +61,7 @@
     <string name="menu_none">Cap</string>
     <string name="menu_default">Per defecte</string>
     <string name="menu_menu">Menú</string>
-    <string name="action_duration">Durada</string>
-    <string name="action_target" comment="In temp target menu, single target value">Objectiu</string>
-    <string name="action_low" comment="In temp target menu, lower value from range">Baix</string>
-    <string name="action_high" comment="In temp target menu, higher value from range">Alt</string>
     <string name="action_carbs">Carbs</string>
-    <string name="action_percentage">Percentatge</string>
-    <string name="action_start_min">Inici [min]</string>
     <string name="action_duration_h">Durada [h]</string>
     <string name="action_insulin">Insulina</string>
     <string name="action_preset_1">Predefinit 1</string>
@@ -83,8 +69,6 @@
     <string name="action_preset_3">Predefinit 3</string>
     <string name="action_free_amount" comment="In prime/fill menu, allows one to enter any amount to be used for priming/filling">Quantitat lliure</string>
     <string name="action_confirm">CONFIRMAR</string>
-    <string name="action_timeshift">desplaçament horari</string>
-    <string name="action_bolus">Bolus</string>
     <string name="bolus_progress">Progressió bolus</string>
     <string name="press_to_cancel">premeu per cancel·lar</string>
     <string name="cancel_bolus">CANCEL·LAR BOLUS</string>
@@ -118,17 +102,12 @@
     <string name="color_name_black">negre</string>
     <string name="color_name_multicolor">multicolor</string>
     <string name="pref_simplify_ui">Simplificar la interfície</string>
-    <string name="pref_simplify_ui_sum">Mostrar només l\'hora i la glucosa</string>
     <string name="pref_vibrate_hourly">Vibrar cada hora</string>
     <string name="pref_show_weeknumber">Mostrar nr. de setmana</string>
-    <string name="digitalstyle_pref_your_style">Estil:</string>
     <string name="digitalstyle_style_none">sense estil</string>
     <string name="digitalstyle_style_minimal">estil minimalista</string>
     <string name="digitalstyle_style_shape">estil forma</string>
     <string name="digitalstyle_style_full">estil complet</string>
-    <string name="digitalstyle_pref_your_color">Color:</string>
-    <string name="digitalstyle_pref_your_color_saturation">Saturació color:</string>
-    <string name="digitalstyle_pref_your_color_opacity">Opacitat color:</string>
     <string name="bolus_progress_channel_name">Progressió bolus AAPS</string>
     <string name="bolus_progress_silent_channel_name">Progressió bolus AAPS silenciós</string>
     <string name="bolus_progress_channel_description">Progressió i cancel·lació de bolus</string>

@@ -4,18 +4,18 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.HandlerThread
+import app.aaps.core.data.plugin.PluginType
 import app.aaps.core.interfaces.constraints.Constraint
 import app.aaps.core.interfaces.constraints.PluginConstraints
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.notifications.Notification
-import app.aaps.core.interfaces.plugin.PluginBase
+import app.aaps.core.interfaces.plugin.PluginBaseWithPreferences
 import app.aaps.core.interfaces.plugin.PluginDescription
-import app.aaps.core.interfaces.plugin.PluginType
 import app.aaps.core.interfaces.resources.ResourceHelper
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.plugins.constraints.R
-import dagger.android.HasAndroidInjector
+import app.aaps.plugins.constraints.signatureVerifier.keys.SignatureVerifierLongKey
 import org.spongycastle.util.encoders.Hex
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -28,7 +28,6 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
-import java.util.Arrays
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,25 +37,26 @@ import javax.inject.Singleton
  * In case someone decides to leak a ready-to-use APK nonetheless, we can still disable it.
  * Self-compiled APKs with privately held certificates cannot and will not be disabled.
  */
+@Suppress("PrivatePropertyName")
 @Singleton
 class SignatureVerifierPlugin @Inject constructor(
-    injector: HasAndroidInjector,
     aapsLogger: AAPSLogger,
     rh: ResourceHelper,
-    private val sp: SP,
+    preferences: Preferences,
     private val context: Context,
     private val uiInteraction: UiInteraction
-) : PluginBase(
-    PluginDescription()
+) : PluginBaseWithPreferences(
+    pluginDescription = PluginDescription()
         .mainType(PluginType.CONSTRAINTS)
         .neverVisible(true)
         .alwaysEnabled(true)
-        .showInList(false)
+        .showInList { false }
         .pluginName(R.string.signature_verifier),
-    aapsLogger, rh, injector
+    ownPreferences = listOf(SignatureVerifierLongKey::class.java),
+    aapsLogger, rh, preferences
 ), PluginConstraints {
 
-    private var handler = Handler(HandlerThread(this::class.simpleName + "Handler").also { it.start() }.looper)
+    private var handler: Handler? = null
 
     private val REVOKED_CERTS_URL = "https://raw.githubusercontent.com/nightscout/AndroidAPS/master/app/src/main/assets/revoked_certs.txt"
     private val UPDATE_INTERVAL = TimeUnit.DAYS.toMillis(1)
@@ -66,8 +66,9 @@ class SignatureVerifierPlugin @Inject constructor(
     private var revokedCerts: List<ByteArray>? = null
     override fun onStart() {
         super.onStart()
+        handler = Handler(HandlerThread(this::class.simpleName + "Handler").also { it.start() }.looper)
         revokedCertsFile = File(context.filesDir, "revoked_certs.txt")
-        handler.post {
+        handler?.post {
             loadLocalRevokedCerts()
             if (shouldDownloadCerts()) {
                 try {
@@ -81,7 +82,9 @@ class SignatureVerifierPlugin @Inject constructor(
     }
 
     override fun onStop() {
-        handler.removeCallbacksAndMessages(null)
+        handler?.removeCallbacksAndMessages(null)
+        handler?.looper?.quit()
+        handler = null
         super.onStop()
     }
 
@@ -91,7 +94,7 @@ class SignatureVerifierPlugin @Inject constructor(
             value.set(false)
         }
         if (shouldDownloadCerts()) {
-            handler.post {
+            handler?.post {
                 try {
                     downloadAndSaveRevokedCerts()
                 } catch (e: IOException) {
@@ -118,7 +121,7 @@ class SignatureVerifierPlugin @Inject constructor(
                         val digest = MessageDigest.getInstance("SHA256")
                         val fingerprint = digest.digest(signature.toByteArray())
                         for (cert in revokedCerts!!) {
-                            if (Arrays.equals(cert, fingerprint)) {
+                            if (cert.contentEquals(fingerprint)) {
                                 return true
                             }
                         }
@@ -157,6 +160,7 @@ class SignatureVerifierPlugin @Inject constructor(
         return hashes
     }
 
+    @Suppress("SpellCheckingInspection")
     var map =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"§$%&/()=?,.-;:_<>|°^`´\\@€*'#+~{}[]¿¡áéíóúàèìòùöäü`ÁÉÍÓÚÀÈÌÒÙÖÄÜßÆÇÊËÎÏÔŒÛŸæçêëîïôœûÿĆČĐŠŽćđšžñΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ\u03A2ΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρςστυφχψωϨϩϪϫϬϭϮϯϰϱϲϳϴϵ϶ϷϸϹϺϻϼϽϾϿЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗ"
 
@@ -169,13 +173,13 @@ class SignatureVerifierPlugin @Inject constructor(
     }
 
     private fun shouldDownloadCerts(): Boolean {
-        return System.currentTimeMillis() - sp.getLong(R.string.key_last_revoked_certs_check, 0L) >= UPDATE_INTERVAL
+        return System.currentTimeMillis() - preferences.get(SignatureVerifierLongKey.LastRevokedCertCheck) >= UPDATE_INTERVAL
     }
 
     @Throws(IOException::class) private fun downloadAndSaveRevokedCerts() {
         val download = downloadRevokedCerts()
         saveRevokedCerts(download)
-        sp.putLong(R.string.key_last_revoked_certs_check, System.currentTimeMillis())
+        preferences.put(SignatureVerifierLongKey.LastRevokedCertCheck, System.currentTimeMillis())
         synchronized(lock) { revokedCerts = parseRevokedCertsFile(download) }
     }
 
@@ -202,16 +206,16 @@ class SignatureVerifierPlugin @Inject constructor(
     }
 
     @Throws(IOException::class)
-    private fun readInputStream(inputStream: InputStream): String {
+    fun readInputStream(inputStream: InputStream): String {
         return try {
-            val baos = ByteArrayOutputStream()
+            val os = ByteArrayOutputStream()
             val buffer = ByteArray(1024)
             var read: Int
             while (inputStream.read(buffer).also { read = it } != -1) {
-                baos.write(buffer, 0, read)
+                os.write(buffer, 0, read)
             }
-            baos.flush()
-            String(baos.toByteArray(), StandardCharsets.UTF_8)
+            os.flush()
+            String(os.toByteArray(), StandardCharsets.UTF_8)
         } finally {
             inputStream.close()
         }

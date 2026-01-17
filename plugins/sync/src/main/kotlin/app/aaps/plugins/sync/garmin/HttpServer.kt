@@ -4,6 +4,7 @@ import android.os.StrictMode
 import androidx.annotation.VisibleForTesting
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.utils.pump.ThreadUtil
 import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
@@ -23,7 +24,6 @@ import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
@@ -33,8 +33,8 @@ import kotlin.concurrent.withLock
 class HttpServer internal constructor(private var aapsLogger: AAPSLogger, val port: Int) : Closeable {
 
     private val serverThread: Thread
-    private val workerExecutor: Executor = Executors.newCachedThreadPool()
-    private val endpoints: MutableMap<String, (SocketAddress, URI, String?) -> CharSequence> =
+    private val workerExecutor = Executors.newCachedThreadPool()
+    private val endpoints: MutableMap<String, (SocketAddress, URI, String?) -> Pair<Int, CharSequence>> =
         ConcurrentHashMap()
     private var serverSocket: ServerSocket? = null
     private val readyLock = ReentrantLock()
@@ -53,6 +53,7 @@ class HttpServer internal constructor(private var aapsLogger: AAPSLogger, val po
     }
 
     override fun close() {
+        workerExecutor.shutdown()
         try {
             serverSocket?.close()
             serverSocket = null
@@ -72,11 +73,11 @@ class HttpServer internal constructor(private var aapsLogger: AAPSLogger, val po
                 waitNanos = readyCond.awaitNanos(waitNanos)
             }
         }
-        return serverSocket?.isBound ?: false
+        return serverSocket?.isBound == true
     }
 
     /** Register an endpoint (path) to handle requests. */
-    fun registerEndpoint(path: String, endpoint: (SocketAddress, URI, String?) -> CharSequence) {
+    fun registerEndpoint(path: String, endpoint: (SocketAddress, URI, String?) -> Pair<Int, CharSequence>) {
         aapsLogger.info(LTag.GARMIN, "Register: '$path'")
         endpoints[path] = endpoint
     }
@@ -127,8 +128,8 @@ class HttpServer internal constructor(private var aapsLogger: AAPSLogger, val po
                 respond(HttpURLConnection.HTTP_NOT_FOUND, out)
             } else {
                 try {
-                    val body = endpoint(s.remoteSocketAddress, uri, reqBody)
-                    respond(HttpURLConnection.HTTP_OK, body, "application/json", out)
+                    val (code, body) = endpoint(s.remoteSocketAddress, uri, reqBody)
+                    respond(code, body, "application/json", out)
                 } catch (e: Exception) {
                     aapsLogger.error(LTag.GARMIN, "endpoint " + uri.path + " failed", e)
                     respond(HttpURLConnection.HTTP_INTERNAL_ERROR, out)
@@ -165,7 +166,7 @@ class HttpServer internal constructor(private var aapsLogger: AAPSLogger, val po
             val socket = serverSocket!!.accept()
             aapsLogger.info(LTag.GARMIN, "accept " + socket.remoteSocketAddress)
             workerExecutor.execute {
-                Thread.currentThread().name = "worker" + Thread.currentThread().id
+                Thread.currentThread().name = "worker" + ThreadUtil.threadId()
                 try {
                     socket.use { s ->
                         s.soTimeout = 10_000

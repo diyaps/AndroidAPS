@@ -7,9 +7,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
+import app.aaps.core.data.model.RM
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.aps.Loop
 import app.aaps.core.interfaces.configuration.Config
-import app.aaps.core.interfaces.extensions.toVisibility
+import app.aaps.core.interfaces.db.PersistenceLayer
+import app.aaps.core.interfaces.db.ProcessedTbrEbData
 import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.UserEntryLogger
@@ -27,20 +31,19 @@ import app.aaps.core.interfaces.rx.events.EventExtendedBolusChange
 import app.aaps.core.interfaces.rx.events.EventInitializationChanged
 import app.aaps.core.interfaces.rx.events.EventTempBasalChange
 import app.aaps.core.interfaces.rx.events.EventTherapyEventChange
-import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
-import app.aaps.core.main.extensions.toStringMedium
-import app.aaps.core.main.extensions.toStringShort
+import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.BooleanNonKey
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.objects.extensions.toStringMedium
+import app.aaps.core.objects.extensions.toStringShort
 import app.aaps.core.ui.UIRunnable
 import app.aaps.core.ui.dialogs.OKDialog
 import app.aaps.core.ui.elements.SingleClickButton
-import app.aaps.database.ValueWrapper
-import app.aaps.database.entities.UserEntry.Action
-import app.aaps.database.entities.UserEntry.Sources
-import app.aaps.database.impl.AppRepository
+import app.aaps.core.ui.extensions.toVisibility
 import app.aaps.plugins.main.R
 import app.aaps.plugins.main.databinding.ActionsFragmentBinding
 import app.aaps.plugins.main.general.overview.ui.StatusLightHandler
@@ -55,7 +58,7 @@ class ActionsFragment : DaggerFragment() {
     @Inject lateinit var aapsLogger: AAPSLogger
     @Inject lateinit var aapsSchedulers: AapsSchedulers
     @Inject lateinit var rxBus: RxBus
-    @Inject lateinit var sp: SP
+    @Inject lateinit var preferences: Preferences
     @Inject lateinit var dateUtil: DateUtil
     @Inject lateinit var profileFunction: ProfileFunction
     @Inject lateinit var decimalFormatter: DecimalFormatter
@@ -64,12 +67,13 @@ class ActionsFragment : DaggerFragment() {
     @Inject lateinit var fabricPrivacy: FabricPrivacy
     @Inject lateinit var activePlugin: ActivePlugin
     @Inject lateinit var iobCobCalculator: IobCobCalculator
+    @Inject lateinit var processedTbrEbData: ProcessedTbrEbData
     @Inject lateinit var commandQueue: CommandQueue
     @Inject lateinit var config: Config
     @Inject lateinit var protectionCheck: ProtectionCheck
     @Inject lateinit var skinProvider: SkinProvider
     @Inject lateinit var uel: UserEntryLogger
-    @Inject lateinit var repository: AppRepository
+    @Inject lateinit var persistenceLayer: PersistenceLayer
     @Inject lateinit var loop: Loop
     @Inject lateinit var uiInteraction: UiInteraction
 
@@ -115,7 +119,7 @@ class ActionsFragment : DaggerFragment() {
                 protectionCheck.queryProtection(activity, ProtectionCheck.Protection.BOLUS, UIRunnable {
                     OKDialog.showConfirmation(
                         activity, rh.gs(app.aaps.core.ui.R.string.extended_bolus), rh.gs(R.string.ebstopsloop),
-                        Runnable {
+                        {
                             uiInteraction.runExtendedBolusDialog(childFragmentManager)
                         }, null
                     )
@@ -123,7 +127,7 @@ class ActionsFragment : DaggerFragment() {
             }
         }
         binding.extendedBolusCancel.setOnClickListener {
-            if (iobCobCalculator.getExtendedBolus(dateUtil.now()) != null) {
+            if (persistenceLayer.getExtendedBolusActiveAt(dateUtil.now()) != null) {
                 uel.log(Action.CANCEL_EXTENDED_BOLUS, Sources.Actions)
                 commandQueue.cancelExtended(object : Callback() {
                     override fun run() {
@@ -143,9 +147,9 @@ class ActionsFragment : DaggerFragment() {
             }
         }
         binding.cancelTempBasal.setOnClickListener {
-            if (iobCobCalculator.getTempBasalIncludingConvertedExtended(dateUtil.now()) != null) {
+            if (processedTbrEbData.getTempBasalIncludingConvertedExtended(dateUtil.now()) != null) {
                 uel.log(Action.CANCEL_TEMP_BASAL, Sources.Actions)
-                commandQueue.cancelTempBasal(true, object : Callback() {
+                commandQueue.cancelTempBasal(enforceNew = true, callback = object : Callback() {
                     override fun run() {
                         if (!result.success) {
                             uiInteraction.runAlarm(result.comment, rh.gs(app.aaps.core.ui.R.string.temp_basal_delivery_error), app.aaps.core.ui.R.raw.boluserror)
@@ -182,8 +186,11 @@ class ActionsFragment : DaggerFragment() {
         binding.announcement.setOnClickListener {
             uiInteraction.runCareDialog(childFragmentManager, UiInteraction.EventType.ANNOUNCEMENT, app.aaps.core.ui.R.string.careportal_announcement)
         }
+        binding.siteRotation.setOnClickListener {
+            uiInteraction.runSiteRotationDialog(childFragmentManager)
+        }
 
-        sp.putBoolean(app.aaps.core.utils.R.string.key_objectiveuseactions, true)
+        preferences.put(BooleanNonKey.ObjectivesActionsUsed, true)
     }
 
     @Synchronized
@@ -233,35 +240,35 @@ class ActionsFragment : DaggerFragment() {
             activePlugin.activeProfileSource.profile != null &&
                 pump.pumpDescription.isSetBasalProfileCapable &&
                 pump.isInitialized() &&
-                !pump.isSuspended() &&
-                !loop.isDisconnected).toVisibility()
+                loop.runningMode != RM.Mode.DISCONNECTED_PUMP &&
+                !pump.isSuspended()).toVisibility()
 
-        if (!pump.pumpDescription.isExtendedBolusCapable || !pump.isInitialized() || pump.isSuspended() || loop.isDisconnected || pump.isFakingTempsByExtendedBoluses || config.NSCLIENT) {
+        if (!pump.pumpDescription.isExtendedBolusCapable || !pump.isInitialized()  || pump.isSuspended() || loop.runningMode == RM.Mode.DISCONNECTED_PUMP || pump.isFakingTempsByExtendedBoluses || config.AAPSCLIENT) {
             binding.extendedBolus.visibility = View.GONE
             binding.extendedBolusCancel.visibility = View.GONE
         } else {
-            val activeExtendedBolus = repository.getExtendedBolusActiveAt(dateUtil.now()).blockingGet()
-            if (activeExtendedBolus is ValueWrapper.Existing) {
+            val activeExtendedBolus = persistenceLayer.getExtendedBolusActiveAt(dateUtil.now())
+            if (activeExtendedBolus != null) {
                 binding.extendedBolus.visibility = View.GONE
                 binding.extendedBolusCancel.visibility = View.VISIBLE
                 @Suppress("SetTextI18n")
-                binding.extendedBolusCancel.text = rh.gs(app.aaps.core.ui.R.string.cancel) + " " + activeExtendedBolus.value.toStringMedium(dateUtil, decimalFormatter)
+                binding.extendedBolusCancel.text = rh.gs(app.aaps.core.ui.R.string.cancel) + " " + activeExtendedBolus.toStringMedium(dateUtil, rh)
             } else {
                 binding.extendedBolus.visibility = View.VISIBLE
                 binding.extendedBolusCancel.visibility = View.GONE
             }
         }
 
-        if (!pump.pumpDescription.isTempBasalCapable || !pump.isInitialized() || pump.isSuspended() || loop.isDisconnected || config.NSCLIENT) {
+        if (!pump.pumpDescription.isTempBasalCapable || !pump.isInitialized() || pump.isSuspended() || loop.runningMode == RM.Mode.DISCONNECTED_PUMP || config.AAPSCLIENT) {
             binding.setTempBasal.visibility = View.GONE
             binding.cancelTempBasal.visibility = View.GONE
         } else {
-            val activeTemp = iobCobCalculator.getTempBasalIncludingConvertedExtended(System.currentTimeMillis())
+            val activeTemp = processedTbrEbData.getTempBasalIncludingConvertedExtended(System.currentTimeMillis())
             if (activeTemp != null) {
                 binding.setTempBasal.visibility = View.GONE
                 binding.cancelTempBasal.visibility = View.VISIBLE
                 @Suppress("SetTextI18n")
-                binding.cancelTempBasal.text = rh.gs(app.aaps.core.ui.R.string.cancel) + " " + activeTemp.toStringShort(decimalFormatter)
+                binding.cancelTempBasal.text = rh.gs(app.aaps.core.ui.R.string.cancel) + " " + activeTemp.toStringShort(rh)
             } else {
                 binding.setTempBasal.visibility = View.VISIBLE
                 binding.cancelTempBasal.visibility = View.GONE
@@ -269,20 +276,18 @@ class ActionsFragment : DaggerFragment() {
         }
         val activeBgSource = activePlugin.activeBgSource
         binding.historyBrowser.visibility = (profile != null).toVisibility()
-        binding.fill.visibility = (pump.pumpDescription.isRefillingCapable && pump.isInitialized() && !pump.isSuspended()).toVisibility()
+        binding.fill.visibility = (pump.pumpDescription.isRefillingCapable && pump.isInitialized()).toVisibility()
         binding.pumpBatteryChange.visibility = (pump.pumpDescription.isBatteryReplaceable || pump.isBatteryChangeLoggingEnabled()).toVisibility()
-        binding.tempTarget.visibility = (profile != null && !loop.isDisconnected).toVisibility()
+        binding.tempTarget.visibility = (profile != null && loop.runningMode.isLoopRunning()).toVisibility()
         binding.tddStats.visibility = pump.pumpDescription.supportsTDDs.toVisibility()
         val isPatchPump = pump.pumpDescription.isPatchPump
         binding.status.apply {
             cannulaOrPatch.text = if (cannulaOrPatch.text.isEmpty()) "" else if (isPatchPump) rh.gs(R.string.patch_pump) else rh.gs(R.string.cannula)
-            val imageResource = if (isPatchPump) app.aaps.core.main.R.drawable.ic_patch_pump_outline else R.drawable.ic_cp_age_cannula
+            val imageResource = if (isPatchPump) app.aaps.core.objects.R.drawable.ic_patch_pump_outline else R.drawable.ic_cp_age_cannula
             cannulaOrPatch.setCompoundDrawablesWithIntrinsicBounds(imageResource, 0, 0, 0)
             batteryLayout.visibility = (!isPatchPump || pump.pumpDescription.useHardwareLink).toVisibility()
-            cannulaUsageLabel.visibility = isPatchPump.not().toVisibility()
-            cannulaUsage.visibility = isPatchPump.not().toVisibility()
 
-            if (!config.NSCLIENT) {
+            if (!config.AAPSCLIENT) {
                 statusLightHandler.updateStatusLights(
                     cannulaAge, cannulaUsage, insulinAge,
                     reservoirLevel, sensorAge, sensorLevel,

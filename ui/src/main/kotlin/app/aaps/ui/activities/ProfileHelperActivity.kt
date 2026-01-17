@@ -6,7 +6,9 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.widget.ArrayAdapter
 import android.widget.TextView
-import app.aaps.core.interfaces.extensions.toVisibility
+import app.aaps.core.data.model.EPS
+import app.aaps.core.data.time.T
+import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.PureProfile
@@ -17,14 +19,12 @@ import app.aaps.core.interfaces.rx.events.EventLocalProfileChanged
 import app.aaps.core.interfaces.stats.TddCalculator
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.T
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
-import app.aaps.core.main.profile.ProfileSealed
+import app.aaps.core.objects.profile.ProfileSealed
 import app.aaps.core.ui.activities.TranslatedDaggerAppCompatActivity
 import app.aaps.core.ui.dialogs.OKDialog
+import app.aaps.core.ui.extensions.toVisibility
 import app.aaps.core.ui.toast.ToastUtils
-import app.aaps.database.entities.EffectiveProfileSwitch
-import app.aaps.database.impl.AppRepository
 import app.aaps.ui.R
 import app.aaps.ui.databinding.ActivityProfilehelperBinding
 import app.aaps.ui.defaultProfile.DefaultProfile
@@ -46,7 +46,7 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
     @Inject lateinit var defaultProfileDPV: DefaultProfileDPV
     @Inject lateinit var dateUtil: DateUtil
     @Inject lateinit var activePlugin: ActivePlugin
-    @Inject lateinit var repository: AppRepository
+    @Inject lateinit var persistenceLayer: PersistenceLayer
     @Inject lateinit var aapsSchedulers: AapsSchedulers
     @Inject lateinit var fabricPrivacy: FabricPrivacy
     @Inject lateinit var rh: ResourceHelper
@@ -71,11 +71,13 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
     private lateinit var profileList: ArrayList<CharSequence>
     private val profileUsed = arrayOf(0, 0)
 
-    private lateinit var profileSwitch: List<EffectiveProfileSwitch>
+    private lateinit var profileSwitch: List<EPS>
     private val profileSwitchUsed = arrayOf(0, 0)
 
     private lateinit var binding: ActivityProfilehelperBinding
     private val disposable = CompositeDisposable()
+    private var weightTextWatcher: TextWatcher? = null
+    private var tddTextWatcher: TextWatcher? = null
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,7 +126,7 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
         }
 
         // Profile switch
-        profileSwitch = repository.getEffectiveProfileSwitchDataFromTime(dateUtil.now() - T.months(2).msecs(), true).blockingGet()
+        profileSwitch = persistenceLayer.getEffectiveProfileSwitchesFromTime(dateUtil.now() - T.months(2).msecs(), true).blockingGet()
 
         val profileswitchListNames = profileSwitch.map { it.originalCustomizedName }
         binding.profileswitchList.setAdapter(ArrayAdapter(this, app.aaps.core.ui.R.layout.spinner_centered, profileswitchListNames))
@@ -142,7 +144,7 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
             val profile = if (typeSelected[tabSelected] == ProfileType.MOTOL_DEFAULT) defaultProfile.profile(age, tdd, weight, profileFunction.getUnits())
             else defaultProfileDPV.profile(age, tdd, pct / 100.0, profileFunction.getUnits())
             profile?.let {
-                OKDialog.showConfirmation(this, rh.gs(app.aaps.core.ui.R.string.careportal_profileswitch), rh.gs(app.aaps.core.ui.R.string.copytolocalprofile), Runnable {
+                OKDialog.showConfirmation(this, rh.gs(app.aaps.core.ui.R.string.careportal_profileswitch), rh.gs(app.aaps.core.ui.R.string.copytolocalprofile), {
                     activePlugin.activeProfileSource.addProfile(
                         activePlugin.activeProfileSource.copyFrom(
                             it, "DefaultProfile " +
@@ -156,20 +158,22 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
         }
 
         binding.age.setParams(0.0, 1.0, 18.0, 1.0, DecimalFormat("0"), false, null)
-        binding.weight.setParams(0.0, 0.0, 150.0, 1.0, DecimalFormat("0"), false, null, object : TextWatcher {
+        weightTextWatcher = object : TextWatcher {
             override fun afterTextChanged(s: Editable) {}
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                 binding.tddRow.visibility = (binding.weight.value == 0.0).toVisibility()
             }
-        })
-        binding.tdd.setParams(0.0, 0.0, 200.0, 1.0, DecimalFormat("0"), false, null, object : TextWatcher {
+        }
+        binding.weight.setParams(0.0, 0.0, 150.0, 1.0, DecimalFormat("0"), false, null, weightTextWatcher)
+        tddTextWatcher = object : TextWatcher {
             override fun afterTextChanged(s: Editable) {}
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                 binding.weightRow.visibility = (binding.tdd.value == 0.0).toVisibility()
             }
-        })
+        }
+        binding.tdd.setParams(0.0, 0.0, 200.0, 1.0, DecimalFormat("0"), false, null, tddTextWatcher)
 
         binding.basalPctFromTdd.setParams(32.0, 32.0, 37.0, 1.0, DecimalFormat("0"), false, null)
 
@@ -259,9 +263,9 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
                 ProfileType.DPV_DEFAULT       -> defaultProfileDPV.profile(age, tdd, basalPct, profileFunction.getUnits())
                 ProfileType.CURRENT           -> profileFunction.getProfile()?.convertToNonCustomizedProfile(dateUtil)
                 ProfileType.AVAILABLE_PROFILE -> activePlugin.activeProfileSource.profile?.getSpecificProfile(profileList[profileUsed[tab]].toString())
-                ProfileType.PROFILE_SWITCH    -> ProfileSealed.EPS(profileSwitch[profileSwitchUsed[tab]]).convertToNonCustomizedProfile(dateUtil)
+                ProfileType.PROFILE_SWITCH    -> ProfileSealed.EPS(value = profileSwitch[profileSwitchUsed[tab]], activePlugin = null).convertToNonCustomizedProfile(dateUtil)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
 
@@ -322,5 +326,15 @@ class ProfileHelperActivity : TranslatedDaggerAppCompatActivity() {
     override fun onPause() {
         super.onPause()
         disposable.clear()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        binding.tabLayout.clearOnTabSelectedListeners()
+        binding.profileType.onItemClickListener = null
+        binding.availableProfileList.onItemClickListener = null
+        binding.profileswitchList.onItemClickListener = null
+        binding.copyToLocalProfile.setOnClickListener(null)
+        binding.compareProfiles.setOnClickListener(null)
     }
 }

@@ -2,9 +2,6 @@
 <resources>
     <string name="app_name">AAPS</string>
     <string name="label_actions_activity">AAPS</string>
-    <string name="label_watchface_large">AAPS(大)</string>
-    <string name="label_watchface_big_chart">AAPS(大图)</string>
-    <string name="label_watchface_no_chart">AAPS(无图)</string>
     <string name="label_watchface_circle">AAPS(圆形)</string>
     <string name="label_watchface_digital_style">AAPS(数字风格)</string>
     <string name="label_actions_tile">AAPS(操作)</string>
@@ -17,7 +14,6 @@
     <string name="msg_warning_sync">自 %1$s以来未收到任何数据! 检查手机上的 AAPS 是否发送数据到手表。</string>
     <string name="msg_warning_old">AAPS 数据为 %1$s之前! 请检查传感器， xDrip+， NS， AAPS 配置或其他!</string>
     <string name="pref_vibrate_on_bolus">大剂量时震动</string>
-    <string name="pref_units_for_actions">操作单元</string>
     <string name="pref_show_date">显示日期</string>
     <string name="pref_show_iob">显示 IOB</string>
     <string name="pref_show_cob">显示 COB</string>
@@ -44,10 +40,6 @@
     <string name="pref_quick_righty">快速右对齐</string>
     <string name="pref_quick_lefty">快速左对齐</string>
     <string name="pref_modern_sparse">现代场景</string>
-    <string name="pref_low">低</string>
-    <string name="pref_medium">中等</string>
-    <string name="pref_high">高</string>
-    <string name="pref_auto">自动</string>
     <string name="pref_big_numbers">大数字</string>
     <string name="pref_ring_history">Ring 历史记录</string>
     <string name="pref_light_ring_history">Light Ring历史记录</string>
@@ -77,7 +69,6 @@
     <string name="menu_default">默认 </string>
     <string name="menu_menu">菜单</string>
     <string name="quick_wizard_short">XL</string>
-    <string name="action_duration">时长</string>
     <string name="action_tempt_confirmation">临时目标请求</string>
     <string name="action_quick_wizard_confirmation">快速向导请求</string>
     <string name="action_treatment_confirmation">治疗请求</string>
@@ -86,13 +77,8 @@
     <string name="action_fill_confirmation">Fill 充盈请求</string>
     <string name="action_ecarb_confirmation">碳水化合物请求</string>
     <string name="action_profile_switch_confirmation">请求配置文件切换</string>
-    <string name="action_target" comment="In temp target menu, single target value">目标</string>
-    <string name="action_low" comment="In temp target menu, lower value from range">低</string>
-    <string name="action_high" comment="In temp target menu, higher value from range">高</string>
     <string name="action_carbs">碳水</string>
     <string name="action_ecarbs">碳水化合物</string>
-    <string name="action_percentage">百分比</string>
-    <string name="action_start_min">启动 [min]</string>
     <string name="action_duration_h">持续时长 [h]</string>
     <string name="action_insulin">胰岛素</string>
     <string name="action_preset_1">预设1</string>
@@ -100,8 +86,6 @@
     <string name="action_preset_3">预设3</string>
     <string name="action_free_amount" comment="In prime/fill menu, allows one to enter any amount to be used for priming/filling">可用数值</string>
     <string name="action_confirm">确认</string>
-    <string name="action_timeshift">时间偏移</string>
-    <string name="action_bolus">大剂量</string>
     <string name="bolus_progress">大剂量进度</string>
     <string name="press_to_cancel">按下以取消</string>
     <string name="cancel_bolus">取消大剂量</string>
@@ -135,17 +119,12 @@
     <string name="color_name_black">黑色</string>
     <string name="color_name_multicolor">彩色</string>
     <string name="pref_simplify_ui">简化界面</string>
-    <string name="pref_simplify_ui_sum">仅显示时间和血糖</string>
     <string name="pref_vibrate_hourly">按小时振动</string>
     <string name="pref_show_weeknumber">显示星期几</string>
-    <string name="digitalstyle_pref_your_style">您的样式：</string>
     <string name="digitalstyle_style_none">无样式</string>
     <string name="digitalstyle_style_minimal">简约样式</string>
     <string name="digitalstyle_style_shape">几何样式</string>
     <string name="digitalstyle_style_full">完整样式</string>
-    <string name="digitalstyle_pref_your_color">您的颜色：</string>
-    <string name="digitalstyle_pref_your_color_saturation">您的颜色饱和度：</string>
-    <string name="digitalstyle_pref_your_color_opacity">您的颜色透明度：</string>
     <string name="bolus_progress_channel_name">AAPS大剂量进度</string>
     <string name="bolus_progress_silent_channel_name">AAPS大剂量输注禁音</string>
     <string name="bolus_progress_channel_description">大剂量输注与取消</string>

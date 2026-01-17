@@ -3,11 +3,9 @@
     <string name="eopatch">EOPatch2</string>
     <string name="eopatch_shortname">EOP2</string>
     <string name="eopatch_pump_description">Integrazione del microinfusore EOPatch2 / GlucoMen Day</string>
-    <string name="category_alerts">Avvisi</string>
     <string name="low_reservoir">Avvisi livello serbatoio basso</string>
     <string name="patch_expiration_reminders">Promemoria scadenza patch</string>
     <string name="patch_buzzer_reminders">Promemoria buzzer della patch</string>
-    <string name="time_format_a_h_mm">h:mm a</string>
     <string name="eopatch_ble_status">Stato BLE</string>
     <string name="eopatch_serial_number">Numero seriale</string>
     <string name="eopatch_lot_number">Numero lotto</string>
@@ -26,7 +24,6 @@
     <string name="time_1hr">1 hr</string>
     <string name="time_1hr_30min">1 hr 30 min</string>
     <string name="time_2hr">2 hr</string>
-    <string name="all_blank">\u0020</string>
     <string name="patch_safe_deactivation_desc">Per passare a una nuova patch, la patch corrente deve essere scartata. Tutta l\'erogazione di insulina dalla patch verrà annullata.</string>
     <string name="patch_discard_complete_title">Lo scarto della patch è completato.</string>
     <string name="patch_discard_complete_desc">La patch è stata disattivata.\nScartala.\nRimuovi la patch attaccata al tuo corpo.</string>
@@ -38,13 +35,10 @@
     <string name="patch_remaining_usage_period">Tempo rimanente</string>
     <string name="patch_finish">Fine</string>
     <string name="patch_forced_discard">Scarta</string>
-    <string name="patch_comm_error_during_discard_status">Errore di comunicazione durante lo scarto della patch </string>
-    <string name="patch_comm_error_during_discard_desc">Per la normale disattivazione, tocca \'Riprova\'.\nPer una disattivazione unilaterale, tocca \'Scarta\'.</string>
-    <string name="patch_comm_error_during_discard_desc_1">Per la normale disattivazione, tocca \'Riprova\'.</string>
     <string name="patch_comm_error_during_discard_desc_2">Per la disattivazione unilaterale, tocca \'Scarta\'.</string>
     <string name="patch_manually_turning_off_alarm_title">Disattivazione manuale allarme patch</string>
     <string name="patch_manually_turning_off_alarm_desc_1">Se disattivato unilateralmente durante un errore di comunicazione, il BIP di allarme dalla patch potrebbe non arrestarsi.</string>
-    <string name="patch_manually_turning_off_alarm_desc_2">In questo caso, puoi fermarlo completamente colpendo la porta di rilascio manuale dell\'allarme sulla patch come di seguito:</string>
+    <string name="patch_manually_turning_off_alarm_desc_2">In questo caso, puoi fermarlo completamente tramite lo switch manuale dell\'allarme sulla patch come di seguito:</string>
     <string name="patch_manually_turning_off_alarm_step_1">1. Rimuovi la patch dal corpo e stacca il nastro adesivo.</string>
     <string name="patch_manually_turning_off_alarm_step_2">2. Usa una clip, colpisci con forza il foro accanto alla porta di riempimento dell\'insulina.</string>
     <string name="patch_wake_up">Riempimento insulina</string>
@@ -82,12 +76,10 @@
     <string name="patch_expiration_reminder_setting_title">Promemoria scadenza patch</string>
     <string name="patch_activate_reminder_title">Promemoria attivazione patch</string>
     <string name="patch_activate_reminder_desc">L\'attivazione della patch non è stata completata.\n Continua.</string>
-    <string name="patch_communication_check">Controllo comunicazione patch</string>
-    <string name="patch_communication_check_status_1">Controllo comunicazione patch…</string>
     <string name="patch_communication_check_helper_1">Avvicinare il dispositivo alla patch.</string>
     <string name="patch_communication_check_helper_2">Spostati in un altro posto e riprova.</string>
     <string name="patch_communication_failed">Errore comunicazione</string>
-    <string name="patch_communication_succeed">Riuscita comunicazione</string>
+    <string name="patch_communication_succeed">Comunicazione riuscita</string>
     <string name="patch_communication_succeed_message">Connesso con la patch</string>
     <string name="patch_cancel_pairing">Annulla associazione</string>
     <string name="symbol_days">giorni</string>
@@ -113,8 +105,7 @@
     <string name="string_in_progress">Elaborazione</string>
     <string name="retry">Riprova</string>
     <string name="string_caution_not_remove_needle_cap">[Caution] NON rimuovere la protezione dell\'ago e il supporto adesivo sino a ulteriori istruzioni.</string>
-    <string name="string_are_you_sure_to_discard_current_patch">Sei sicuro di scartare la patch corrent?</string>
-    <string name="string_unconfirmed_bolus_info_discard_confirm_message">A causa di informazioni non confermate riguardo il bolo, il calcolo del bolo non può essere usato fino a %s.\n\nSei sicuro di voler scartare la patch corrente?</string>
+    <string name="string_are_you_sure_to_discard_current_patch">Sei sicuro di voler scartare la patch corrente?</string>
     <string name="needle_insertion_error_1">Errore inserimento ago.</string>
     <string name="needle_insertion_error_2">Controlla che la direzione del foro rimanente dopo aver girato la leva sia dritta, quindi tocca \'Riprova\'.</string>
     <string name="needle_insertion_error_3">Tocca \'Scarta\' per disattivare la patch.</string>
@@ -126,7 +117,6 @@
     <string name="finish">Fine</string>
     <string name="string_temp_basal_remained_hhmm">tempo rimanente: %1$s:%2$s</string>
     <string name="next">Avanti</string>
-    <string name="patch_connection_fail">Riprova dopo il controllo comunicazione patch.</string>
     <string name="string_pause_failed">Sospensione fallita.</string>
     <string name="string_resume_failed">Ripresa fallita.</string>
     <string name="date_format_yyyy_m_d_e_a_hh_mm_comma">EEE, d MMM, yyyy hh:mm a</string>

@@ -28,8 +28,10 @@ import app.aaps.plugins.sync.nsclientV3.workers.LoadProfileStoreWorker
 import app.aaps.plugins.sync.nsclientV3.workers.LoadStatusWorker
 import app.aaps.plugins.sync.nsclientV3.workers.LoadTreatmentsWorker
 import app.aaps.plugins.sync.tidepool.TidepoolFragment
+import app.aaps.plugins.sync.tidepool.auth.AuthFlowIn
 import app.aaps.plugins.sync.wear.WearFragment
 import app.aaps.plugins.sync.wear.activities.CwfInfosActivity
+import app.aaps.plugins.sync.wear.receivers.WearDataReceiver
 import app.aaps.plugins.sync.wear.wearintegration.DataLayerListenerServiceMobile
 import app.aaps.plugins.sync.xdrip.DataSyncSelectorXdripImpl
 import app.aaps.plugins.sync.xdrip.XdripFragment
@@ -70,9 +72,11 @@ abstract class SyncModule {
     @ContributesAndroidInjector abstract fun contributesDataSyncWorker(): DataSyncWorker
 
     @ContributesAndroidInjector abstract fun contributesTidepoolFragment(): TidepoolFragment
+    @ContributesAndroidInjector abstract fun contributesAuthFlowInActivity(): AuthFlowIn
     @ContributesAndroidInjector abstract fun contributesXdripFragment(): XdripFragment
     @ContributesAndroidInjector abstract fun contributesXdripDataSyncWorker(): XdripDataSyncWorker
     @ContributesAndroidInjector abstract fun contributesWearFragment(): WearFragment
+    @ContributesAndroidInjector abstract fun contributesWearDataReceiver(): WearDataReceiver
     @ContributesAndroidInjector abstract fun contributesWatchUpdaterService(): DataLayerListenerServiceMobile
     @ContributesAndroidInjector abstract fun contributesCustomWatchfaceInfosActivity(): CwfInfosActivity
 

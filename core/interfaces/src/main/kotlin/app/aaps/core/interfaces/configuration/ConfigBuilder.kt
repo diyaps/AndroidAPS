@@ -1,11 +1,12 @@
 package app.aaps.core.interfaces.configuration
 
+import android.content.Context
 import android.widget.LinearLayout
 import androidx.annotation.StringRes
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import app.aaps.core.data.plugin.PluginType
+import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.plugin.PluginBase
-import app.aaps.core.interfaces.plugin.PluginType
 
 interface ConfigBuilder {
 
@@ -37,23 +38,28 @@ interface ConfigBuilder {
      * @param pluginType plugin category for example SYNC
      * @param plugins list of plugins
      * @param pluginViewHolders links to created UI elements (for calling `update` if configuration is changed)
-     * @param fragment
-     * @param activity either fragment or activity must be non null
+     * @param activity activity
      * @param parent UI container to add views
+     * @param showExpanded display as expanded on first view
      */
     fun createViewsForPlugins(
         @StringRes title: Int?,
         @StringRes description: Int,
         pluginType: PluginType,
         plugins: List<PluginBase>,
-        pluginViewHolders: ArrayList<PluginViewHolderInterface>,
-        fragment: Fragment? = null,
-        activity: FragmentActivity? = null,
-        parent: LinearLayout
+        pluginViewHolders: ArrayList<PluginViewHolderInterface>?,
+        activity: FragmentActivity,
+        parent: LinearLayout,
+        showExpanded: Boolean = false
     )
 
-    interface PluginViewHolderInterface {
+    fun interface PluginViewHolderInterface {
 
-        fun update()
+        fun update(context: Context)
     }
+
+    /**
+     * Restart application
+     */
+    fun exitApp(from: String, source: Sources, launchAgain: Boolean)
 }

@@ -6,15 +6,15 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import app.aaps.core.data.model.BCR
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.database.entities.BolusCalculatorResult
-import com.google.gson.Gson
-import dagger.android.support.DaggerDialogFragment
 import app.aaps.ui.R
 import app.aaps.ui.databinding.DialogWizardinfoBinding
+import com.google.gson.Gson
+import dagger.android.support.DaggerDialogFragment
 import javax.inject.Inject
 
 class WizardInfoDialog : DaggerDialogFragment() {
@@ -24,7 +24,7 @@ class WizardInfoDialog : DaggerDialogFragment() {
     @Inject lateinit var profileUtil: ProfileUtil
     @Inject lateinit var dateUtil: DateUtil
 
-    private lateinit var data: BolusCalculatorResult
+    private lateinit var data: BCR
 
     private var _binding: DialogWizardinfoBinding? = null
 
@@ -35,7 +35,7 @@ class WizardInfoDialog : DaggerDialogFragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         (savedInstanceState ?: arguments)?.let {
             it.getString("data")?.let { str ->
-                data = Gson().fromJson(str, BolusCalculatorResult::class.java)
+                data = Gson().fromJson(str, BCR::class.java)
             }
         }
         dialog?.window?.requestFeature(Window.FEATURE_NO_TITLE)
@@ -72,10 +72,10 @@ class WizardInfoDialog : DaggerDialogFragment() {
         binding.cobInsulin.text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, data.cobInsulin)
         binding.cobCheckbox.isChecked = data.wasCOBUsed
         // Bolus IOB
-        binding.bolusIobInsulin.text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, data.bolusIOB)
+        binding.bolusIobInsulin.text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, -data.bolusIOB)
         binding.bolusIobCheckbox.isChecked = data.wasBolusIOBUsed
         // Basal IOB
-        binding.basalIobInsulin.text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, data.basalIOB)
+        binding.basalIobInsulin.text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, -data.basalIOB)
         binding.basalIobCheckbox.isChecked = data.wasBasalIOBUsed
         // Superbolus
         binding.sbInsulin.text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, data.superbolusInsulin)

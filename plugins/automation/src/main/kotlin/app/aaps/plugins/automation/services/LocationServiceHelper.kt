@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
-import app.aaps.annotations.OpenForTesting
 import app.aaps.core.interfaces.notifications.NotificationHolder
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,7 +19,6 @@ import javax.inject.Singleton
 
  */
 @Singleton
-@OpenForTesting
 class LocationServiceHelper @Inject constructor(
     private val notificationHolder: NotificationHolder
 ) {
@@ -49,7 +47,7 @@ class LocationServiceHelper @Inject constructor(
 
         try {
             context.bindService(Intent(context, LocationService::class.java), connection, Context.BIND_AUTO_CREATE)
-        } catch (ignored: RuntimeException) {
+        } catch (_: RuntimeException) {
             // This is probably a broadcast receiver context even though we are calling getApplicationContext().
             // Just call startForegroundService instead since we cannot bind a service to a
             // broadcast receiver context. The service also have to call startForeground in

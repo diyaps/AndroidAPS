@@ -32,7 +32,6 @@
     <string name="smscommunicator_stops_ns_with_code">要禁用短信遥控服务，请回复验证码%1$s.\n\n请记住，你只能在AAPS闭环手机上重新激活此功能。</string>
     <string name="smscommunicator_stopped_sms">短信遥控服务已禁用。要重新激活它，请使用AAPS闭环手机。</string>
     <string name="smscommunicator_calibration_reply_with_code">要发送校准值 %1$.2f 回复如下代码 %2$s</string>
-    <string name="smscommunicator_bolus_failed">大剂量输注失败</string>
     <string name="smscommunicator_remote_bolus_min_distance_summary">一次远程遥控输注命令与下一次命令之间必须经过的最小分钟数</string>
     <string name="smscommunicator_remote_bolus_min_distance">两次短信遥控胰岛素输注的时间间隔</string>
     <string name="smscommunicator_remote_bolus_min_distance_caveat">为了您的安全，您需要添加至少两个电话号码。</string>
@@ -43,7 +42,6 @@
     <string name="smscommunicator_tt_canceled">临时目标已成功取消</string>
     <string name="smscommunicator_remote_commands_allowed">通过SMS短信允许远程命令</string>
     <string name="smscommunicator_loop_has_been_disabled">闭环已经被禁用</string>
-    <string name="smscommunicator_loop_has_been_enabled">闭环已经被启用</string>
     <string name="smscommunicator_loop_is_enabled">闭环被启用</string>
     <string name="smscommunicator_pump_connect_with_code">连接泵，请回复验证码：%1$s</string>
     <string name="smscommunicator_pump_connect_fail">连接泵失败</string>
@@ -59,7 +57,6 @@
     <string name="smscommunicator_basal_pct_reply_with_code">要开始基础率 %1$d%% 持续时间%2$d 分钟，请回复如下代码 %3$s</string>
     <string name="smscommunicator_suspend_reply_with_code">要暂停闭环 %1$d 分钟请回复如下代码 %2$s</string>
     <string name="smscommunicator_loop_resume_reply_with_code">恢复闭环，请回复验证码：%1$s</string>
-    <string name="smscommunicator_loop_enable_reply_with_code">启用闭环，请回复验证码：%1$s</string>
     <string name="smscommunicator_loop_disable_reply_with_code">禁用闭环，请回复验证码：%1$s</string>
     <string name="smscommunicator_tempbasal_set">临时基础率 %1$.2fU/h 持续 %2$d 分钟启用成功了</string>
     <string name="smscommunicator_extended_set">扩展大剂量 %1$.2fU/h 持续时间 %2$d 分钟已经启用成功了</string>
@@ -120,7 +117,6 @@
     <!-- Profile -->
     <string name="localprofile">配置文件</string>
     <string name="localprofile_shortname">本地配置文件</string>
-    <string name="description_profile_local">定义一个离线可使用的配置文件。</string>
     <string name="a11y_add_new_to_list">新增条目到列表</string>
     <string name="do_you_want_switch_profile">是否要切换配置文件并放弃对当前配置文件所作的更改?</string>
     <string name="save_or_reset_changes_first">首先保存或重置当前更改</string>
@@ -188,11 +184,6 @@
     <string name="overview_shortname">主页</string>
     <string name="description_overview">显示闭环的当前状态和大多数常用操作的按钮</string>
     <string name="overview_buttons_selection">按钮</string>
-    <string name="show_calibration_button_summary">将校准发送到xDrip+或打开BYODA校准对话框</string>
-    <string name="show_cgm_button_summary">打开xDrip+或BYODA应用时，返回键将返回到AAPS应用</string>
-    <string name="dexcom_app_not_installed">未安装德康app。</string>
-    <string name="dexcom_app_not_detected">请将您的 dexcom app 更新为支持的版本</string>
-    <string name="error_starting_cgm">无法启动 CGM 应用程序。 请确保已安装。</string>
     <string name="not_available_full">不可用</string>
     <string name="constraints_violation">违反约束条件</string>
     <string name="change_your_input">更改您的输入!</string>
@@ -213,12 +204,6 @@
     <string name="thirdcarbsincrement">第三碳水化合物增量</string>
     <string name="cgm">CGM</string>
     <string name="default_temptargets">默认的临时目标</string>
-    <string name="eatingsoon_duration">很快吃饭　持续时间</string>
-    <string name="eatingsoon_target">很快吃饭　临时血糖目标</string>
-    <string name="activity_duration">活动持续时间</string>
-    <string name="activity_target">运动临时目标</string>
-    <string name="hypo_duration">持续时间短</string>
-    <string name="hypo_target">低目标</string>
     <string name="fill_bolus_title">输注/充盈标准胰岛素剂量</string>
     <string name="button1">按钮1</string>
     <string name="button2">按钮2</string>
@@ -244,7 +229,6 @@
     <string name="overview_show_deviation_slope">斜度偏差</string>
     <string name="overview_show_activity">活动</string>
     <string name="overview_show_bgi">血糖影响</string>
-    <string name="overview_show_sensitivity">灵敏度</string>
     <string name="overview_show_deviations">偏差</string>
     <string name="overview_show_cob">活性碳水化合物</string>
     <string name="overview_show_iob">活性胰岛素</string>
@@ -258,7 +242,6 @@
     <string name="abs_insulin_shortname">ABS</string>
     <string name="devslope_shortname">DEVSLOPE</string>
     <string name="treatments_shortname">治疗</string>
-    <string name="sensitivity_shortname">灵敏度</string>
     <string name="graph_scale">图形缩放</string>
     <string name="graph_menu_divider_header">绘图</string>
     <!-- Skins -->
@@ -268,7 +251,6 @@
     <string name="largedisplay_description">大显示屏</string>
     <string name="skin">皮肤</string>
     <!--    Iob-->
-    <string name="send_logfiles">发送包括当前时间的今日的日志文件给开发者。描述一下意外情况</string>
     <!--    PersistentNotification-->
     <string name="description_persistent_notification">显示持续的通知, 其中简要概述了您的闭环正在做什么</string>
     <string name="old_data">旧数据</string>

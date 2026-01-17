@@ -1,21 +1,19 @@
 package app.aaps.shared.tests
 
-import app.aaps.annotations.OpenForTesting
+import app.aaps.core.data.pump.defs.ManufacturerType
+import app.aaps.core.data.pump.defs.PumpDescription
+import app.aaps.core.data.pump.defs.PumpType
+import app.aaps.core.data.pump.defs.TimeChangeType
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.pump.DetailedBolusInfo
 import app.aaps.core.interfaces.pump.Pump
 import app.aaps.core.interfaces.pump.PumpEnactResult
 import app.aaps.core.interfaces.pump.PumpSync
-import app.aaps.core.interfaces.pump.defs.ManufacturerType
-import app.aaps.core.interfaces.pump.defs.PumpDescription
-import app.aaps.core.interfaces.pump.defs.PumpType
-import app.aaps.core.interfaces.utils.TimeChangeType
-import dagger.android.HasAndroidInjector
-import org.json.JSONObject
+import app.aaps.core.interfaces.resources.ResourceHelper
+import app.aaps.implementation.pump.PumpEnactResultObject
 
 @Suppress("MemberVisibilityCanBePrivate")
-@OpenForTesting
-class TestPumpPlugin(val injector: HasAndroidInjector) : Pump {
+class TestPumpPlugin(val rh: ResourceHelper) : Pump {
 
     var connected = false
     var isProfileSet = true
@@ -24,7 +22,7 @@ class TestPumpPlugin(val injector: HasAndroidInjector) : Pump {
     override fun isConnected() = connected
     override fun isConnecting() = false
     override fun isHandshakeInProgress() = false
-    val lastData = 0L
+    var lastData = 0L
 
     val baseBasal = 0.0
     override var pumpDescription = PumpDescription()
@@ -48,32 +46,34 @@ class TestPumpPlugin(val injector: HasAndroidInjector) : Pump {
     override fun getPumpStatus(reason: String) { /* not needed */
     }
 
-    override fun setNewBasalProfile(profile: Profile): PumpEnactResult = PumpEnactResult(injector)
+    override fun setNewBasalProfile(profile: Profile): PumpEnactResult = PumpEnactResultObject(rh)
     override fun isThisProfileSet(profile: Profile): Boolean = isProfileSet
-    override fun lastDataTime(): Long = lastData
+    override val lastBolusTime: Long? get() = null
+    override val lastBolusAmount: Double? get() = null
+
+    override val lastDataTime: Long get() = lastData
     override val baseBasalRate: Double get() = baseBasal
     override val reservoirLevel: Double = 0.0
-    override val batteryLevel: Int = 0
-    override fun deliverTreatment(detailedBolusInfo: DetailedBolusInfo): PumpEnactResult = PumpEnactResult(injector).success(true)
+    override val batteryLevel: Int? = null
+    override fun deliverTreatment(detailedBolusInfo: DetailedBolusInfo): PumpEnactResult = PumpEnactResultObject(rh).success(true)
     override fun stopBolusDelivering() { /* not needed */
     }
 
     override fun setTempBasalAbsolute(absoluteRate: Double, durationInMinutes: Int, profile: Profile, enforceNew: Boolean, tbrType: PumpSync.TemporaryBasalType): PumpEnactResult =
-        PumpEnactResult(injector).success(true)
+        PumpEnactResultObject(rh).success(true)
 
     override fun setTempBasalPercent(percent: Int, durationInMinutes: Int, profile: Profile, enforceNew: Boolean, tbrType: PumpSync.TemporaryBasalType): PumpEnactResult =
-        PumpEnactResult(injector).success(true)
+        PumpEnactResultObject(rh).success(true)
 
-    override fun setExtendedBolus(insulin: Double, durationInMinutes: Int): PumpEnactResult = PumpEnactResult(injector).success(true)
-    override fun cancelTempBasal(enforceNew: Boolean): PumpEnactResult = PumpEnactResult(injector).success(true)
-    override fun cancelExtendedBolus(): PumpEnactResult = PumpEnactResult(injector).success(true)
-    override fun getJSONStatus(profile: Profile, profileName: String, version: String): JSONObject = JSONObject()
+    override fun setExtendedBolus(insulin: Double, durationInMinutes: Int): PumpEnactResult = PumpEnactResultObject(rh).success(true)
+    override fun cancelTempBasal(enforceNew: Boolean): PumpEnactResult = PumpEnactResultObject(rh).success(true)
+    override fun cancelExtendedBolus(): PumpEnactResult = PumpEnactResultObject(rh).success(true)
     override fun manufacturer(): ManufacturerType = ManufacturerType.AAPS
     override fun model(): PumpType = PumpType.GENERIC_AAPS
     override fun serialNumber(): String = "1"
-    override fun shortStatus(veryShort: Boolean): String = "Virtual Pump"
+    override fun pumpSpecificShortStatus(veryShort: Boolean): String = "Virtual Pump"
     override val isFakingTempsByExtendedBoluses: Boolean = false
-    override fun loadTDDs(): PumpEnactResult = PumpEnactResult(injector).success(true)
+    override fun loadTDDs(): PumpEnactResult = PumpEnactResultObject(rh).success(true)
     override fun canHandleDST(): Boolean = true
     override fun timezoneOrDSTChanged(timeChangeType: TimeChangeType) { /* not needed */
     }

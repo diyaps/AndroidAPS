@@ -12,10 +12,12 @@
       <w>alexpr</w>
       <w>allowednumbers</w>
       <w>androidaps</w>
+      <w>autn</w>
       <w>autosens</w>
       <w>autosensdata</w>
       <w>autosense</w>
       <w>autotune</w>
+      <w>auts</w>
       <w>bage</w>
       <w>basaliob</w>
       <w>basals</w>
@@ -31,6 +33,7 @@
       <w>carbs</w>
       <w>carbsreq</w>
       <w>careportal</w>
+      <w>cctl</w>
       <w>cellnovo</w>
       <w>chek</w>
       <w>clearalarm</w>
@@ -42,6 +45,8 @@
       <w>datasets</w>
       <w>dbadd</w>
       <w>dbupdate</w>
+      <w>deduplicated</w>
+      <w>defs</w>
       <w>devicestatus</w>
       <w>devicestatuses</w>
       <w>devslope</w>
@@ -50,19 +55,23 @@
       <w>diaconn</w>
       <w>dlvoy</w>
       <w>dttm</w>
+      <w>dynisf</w>
       <w>ecarbs</w>
       <w>enteredby</w>
       <w>enteredinsulin</w>
       <w>eoflow</w>
       <w>eopatch</w>
       <w>epss</w>
+      <w>equil</w>
       <w>eveningoutpost</w>
       <w>eversense</w>
       <w>extendedbolus</w>
+      <w>fanqies</w>
       <w>fiasp</w>
       <w>fileprovider</w>
       <w>firebase</w>
       <w>glimp</w>
+      <w>gluco</w>
       <w>glunovo</w>
       <w>glycemia</w>
       <w>gson</w>
@@ -73,6 +82,7 @@
       <w>instantiator</w>
       <w>insulet</w>
       <w>intelligo</w>
+      <w>iobs</w>
       <w>iobtotal</w>
       <w>joda</w>
       <w>joul</w>
@@ -85,6 +95,7 @@
       <w>medtrum</w>
       <w>mgdl</w>
       <w>miao</w>
+      <w>milenage</w>
       <w>misformatted</w>
       <w>mmol</w>
       <w>motol</w>
@@ -100,11 +111,16 @@
       <w>okcancel</w>
       <w>omnipod</w>
       <w>openaps</w>
+      <w>openapsama</w>
+      <w>openapsma</w>
+      <w>openapssmb</w>
       <w>openhumans</w>
       <w>oref</w>
       <w>otpauth</w>
+      <w>ottai</w>
       <w>passcode</w>
       <w>pbage</w>
+      <w>pcfg</w>
       <w>pdus</w>
       <w>philoul</w>
       <w>poctech</w>
@@ -122,10 +138,14 @@
       <w>rileylink</w>
       <w>roboelectric</w>
       <w>rozman</w>
+      <w>satl</w>
       <w>sbat</w>
+      <w>scripter</w>
       <w>setupwizard</w>
       <w>sgvs</w>
       <w>shortgramm</w>
+      <w>sibionic</w>
+      <w>sino</w>
       <w>sitechange</w>
       <w>skippable</w>
       <w>smscommunicator</w>
@@ -137,6 +157,7 @@
       <w>statuslight</w>
       <w>statuslights</w>
       <w>superbolus</w>
+      <w>syai</w>
       <w>targethigh</w>
       <w>targetlow</w>
       <w>tbrs</w>
@@ -148,6 +169,7 @@
       <w>tidepool</w>
       <w>timeshift</w>
       <w>tirs</w>
+      <w>tomatofn</w>
       <w>totp</w>
       <w>tunedays</w>
       <w>uart</w>

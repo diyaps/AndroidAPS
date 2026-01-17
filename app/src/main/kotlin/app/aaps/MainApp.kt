@@ -1,5 +1,6 @@
 package app.aaps
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Intent
 import android.content.IntentFilter
@@ -9,44 +10,61 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.work.Data
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequest
-import androidx.work.WorkManager
+import app.aaps.core.data.configuration.Constants
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.RM
+import app.aaps.core.data.model.TE
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
+import app.aaps.core.data.ue.ValueWithUnit
 import app.aaps.core.interfaces.alerts.LocalAlertUtils
+import app.aaps.core.interfaces.aps.Loop
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.configuration.ConfigBuilder
-import app.aaps.core.interfaces.extensions.runOnUiThread
+import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
-import app.aaps.core.interfaces.logging.UserEntryLogger
-import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.plugin.PluginBase
+import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.interfaces.utils.SafeParse
+import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.interfaces.versionChecker.VersionCheckerUtils
+import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.IntKey
+import app.aaps.core.keys.LongComposedKey
+import app.aaps.core.keys.StringKey
+import app.aaps.core.keys.UnitDoubleKey
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.extensions.runOnUiThread
 import app.aaps.core.ui.locale.LocaleHelper
-import app.aaps.database.entities.TherapyEvent
-import app.aaps.database.entities.UserEntry
-import app.aaps.database.impl.AppRepository
-import app.aaps.database.impl.transactions.InsertIfNewByTimestampTherapyEventTransaction
-import app.aaps.database.impl.transactions.VersionChangeTransaction
+import app.aaps.core.utils.JsonHelper
+import app.aaps.database.persistence.CompatDBHelper
+import app.aaps.di.AppComponent
 import app.aaps.di.DaggerAppComponent
-import app.aaps.implementation.db.CompatDBHelper
 import app.aaps.implementation.lifecycle.ProcessLifecycleListener
 import app.aaps.implementation.plugin.PluginStore
 import app.aaps.implementation.receivers.NetworkChangeReceiver
-import app.aaps.plugins.aps.utils.StaticInjector
-import app.aaps.plugins.main.general.overview.notifications.NotificationStore
+import app.aaps.plugins.configuration.keys.ConfigurationBooleanComposedKey
+import app.aaps.plugins.constraints.objectives.keys.ObjectivesLongComposedKey
 import app.aaps.plugins.main.general.themes.ThemeSwitcherPlugin
+import app.aaps.plugins.main.profile.keys.ProfileComposedBooleanKey
+import app.aaps.plugins.main.profile.keys.ProfileComposedDoubleKey
+import app.aaps.plugins.main.profile.keys.ProfileComposedStringKey
 import app.aaps.receivers.BTReceiver
 import app.aaps.receivers.ChargingStateReceiver
 import app.aaps.receivers.KeepAliveWorker
 import app.aaps.receivers.TimeDateOrTZChangeReceiver
 import app.aaps.ui.activityMonitor.ActivityMonitor
 import app.aaps.ui.widget.Widget
+import app.aaps.utils.configureLeakCanary
+import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
+import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
+import com.google.firebase.remoteconfig.remoteConfig
 import dagger.android.AndroidInjector
 import dagger.android.DaggerApplication
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -57,11 +75,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import rxdogtag2.RxDogTag
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.reflect.KMutableProperty
+import kotlin.reflect.full.declaredMemberProperties
 
 class MainApp : DaggerApplication() {
 
@@ -72,20 +92,22 @@ class MainApp : DaggerApplication() {
     @Inject lateinit var activityMonitor: ActivityMonitor
     @Inject lateinit var versionCheckersUtils: VersionCheckerUtils
     @Inject lateinit var sp: SP
+    @Inject lateinit var preferences: Preferences
     @Inject lateinit var config: Config
     @Inject lateinit var configBuilder: ConfigBuilder
     @Inject lateinit var plugins: List<@JvmSuppressWildcards PluginBase>
     @Inject lateinit var compatDBHelper: CompatDBHelper
-    @Inject lateinit var repository: AppRepository
+    @Inject lateinit var persistenceLayer: PersistenceLayer
     @Inject lateinit var dateUtil: DateUtil
-    @Suppress("unused") @Inject lateinit var staticInjector: StaticInjector// better avoid, here fake only to initialize
-    @Inject lateinit var uel: UserEntryLogger
     @Inject lateinit var uiInteraction: UiInteraction
-    @Inject lateinit var notificationStore: NotificationStore
     @Inject lateinit var processLifecycleListener: Provider<ProcessLifecycleListener>
     @Inject lateinit var themeSwitcherPlugin: ThemeSwitcherPlugin
     @Inject lateinit var localAlertUtils: LocalAlertUtils
     @Inject lateinit var rh: Provider<ResourceHelper>
+    @Inject lateinit var loop: Loop
+    @Inject lateinit var profileFunction: ProfileFunction
+    @Inject lateinit var fabricPrivacy: FabricPrivacy
+    lateinit var appComponent: AppComponent
 
     private var handler = Handler(HandlerThread(this::class.simpleName + "Handler").also { it.start() }.looper)
     private lateinit var refreshWidget: Runnable
@@ -93,77 +115,84 @@ class MainApp : DaggerApplication() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Here should be everything injected
         aapsLogger.debug("onCreate")
         ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleListener.get())
-        scope.launch {
-            RxDogTag.install()
-            setRxErrorHandler()
-            LocaleHelper.update(this@MainApp)
+        // Configure LeakCanary with Firebase reporting
+        // Memory leaks will be uploaded to Firebase Crashlytics via FabricPrivacy.logException
+        configureLeakCanary(
+            isEnabled = !config.disableLeakCanary(),
+            fabricPrivacy = fabricPrivacy
+        )
 
-            var gitRemote: String? = config.REMOTE
-            var commitHash: String? = BuildConfig.HEAD
-            if (gitRemote?.contains("NoGitSystemAvailable") == true) {
-                gitRemote = null
-                commitHash = null
-            }
-            disposable += compatDBHelper.dbChangeDisposable()
-            registerActivityLifecycleCallbacks(activityMonitor)
-            runOnUiThread { themeSwitcherPlugin.setThemeMode() }
-            aapsLogger.debug("Version: " + config.VERSION_NAME)
-            aapsLogger.debug("BuildVersion: " + config.BUILD_VERSION)
-            aapsLogger.debug("Remote: " + config.REMOTE)
-            registerLocalBroadcastReceiver()
+        // Do necessary migrations
+        doMigrations()
 
-            // trigger here to see the new version on app start after an update
-            versionCheckersUtils.triggerCheckVersion()
+        // Register and initialize plugins
+        pluginStore.plugins = plugins
+        configBuilder.initialize()
 
-            // Register all tabs in app here
-            pluginStore.plugins = plugins
-            configBuilder.initialize()
+        // Do initializations in another thread
+        scope.launch { doInit() }
+    }
 
-            // delayed actions to make rh context updated for translations
-            handler.postDelayed(
-                {
-                    // check if identification is set
-                    if (config.isDev() && sp.getStringOrNull(app.aaps.core.utils.R.string.key_email_for_crash_report, null).isNullOrBlank())
-                        notificationStore.add(Notification(Notification.IDENTIFICATION_NOT_SET, rh.get().gs(R.string.identification_not_set), Notification.INFO))
-                    // log version
-                    disposable += repository.runTransaction(VersionChangeTransaction(config.VERSION_NAME, BuildConfig.VERSION_CODE, gitRemote, commitHash)).subscribe()
-                    // log app start
-                    if (sp.getBoolean(app.aaps.plugins.sync.R.string.key_ns_log_app_started_event, config.APS))
-                        disposable += repository
-                            .runTransaction(
-                                InsertIfNewByTimestampTherapyEventTransaction(
-                                    timestamp = dateUtil.now(),
-                                    type = TherapyEvent.Type.NOTE,
-                                    note = rh.get().gs(app.aaps.core.ui.R.string.androidaps_start) + " - " + Build.MANUFACTURER + " " + Build.MODEL,
-                                    glucoseUnit = TherapyEvent.GlucoseUnit.MGDL
-                                )
-                            )
-                            .subscribe()
-                }, 10000
-            )
-            WorkManager.getInstance(this@MainApp).enqueueUniquePeriodicWork(
-                KeepAliveWorker.KA_0,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequest.Builder(KeepAliveWorker::class.java, 15, TimeUnit.MINUTES)
-                    .setInputData(Data.Builder().putString("schedule", KeepAliveWorker.KA_0).build())
-                    .setInitialDelay(5, TimeUnit.SECONDS)
-                    .build()
-            )
-            localAlertUtils.shortenSnoozeInterval()
-            localAlertUtils.preSnoozeAlarms()
-            doMigrations()
-            uel.log(UserEntry.Action.START_AAPS, UserEntry.Sources.Aaps)
+    private fun doInit() {
+        aapsLogger.debug("doInit")
+        RxDogTag.install()
+        setRxErrorHandler()
+        LocaleHelper.update(this@MainApp)
 
-            //  schedule widget update
-            refreshWidget = Runnable {
-                handler.postDelayed(refreshWidget, 60000)
-                Widget.updateWidget(this@MainApp, "ScheduleEveryMin")
-            }
-            handler.postDelayed(refreshWidget, 60000)
-            config.appInitialized = true
+        var gitRemote: String? = config.REMOTE
+        var commitHash: String? = BuildConfig.HEAD
+        if (gitRemote?.contains("NoGitSystemAvailable") == true) {
+            gitRemote = null
+            commitHash = null
         }
+        disposable += compatDBHelper.dbChangeDisposable()
+        registerActivityLifecycleCallbacks(activityMonitor)
+        runOnUiThread { themeSwitcherPlugin.setThemeMode() }
+        aapsLogger.debug("Version: " + config.VERSION_NAME)
+        aapsLogger.debug("BuildVersion: " + config.BUILD_VERSION)
+        aapsLogger.debug("Remote: " + config.REMOTE)
+        aapsLogger.debug("Phone: " + Build.MANUFACTURER + " " + Build.MODEL)
+        registerLocalBroadcastReceiver()
+        setupRemoteConfig()
+
+        // trigger here to see the new version on app start after an update
+        handler.postDelayed({ versionCheckersUtils.triggerCheckVersion() }, 30000)
+
+        // delayed actions to make rh context updated for translations
+        handler.postDelayed(
+            {
+                // log version
+                disposable += persistenceLayer.insertVersionChangeIfChanged(config.VERSION_NAME, BuildConfig.VERSION_CODE, gitRemote, commitHash).subscribe()
+                // log app start
+                if (preferences.get(BooleanKey.NsClientLogAppStart))
+                    disposable += persistenceLayer.insertPumpTherapyEventIfNewByTimestamp(
+                        therapyEvent = TE(
+                            timestamp = dateUtil.now(),
+                            type = TE.Type.NOTE,
+                            note = rh.get().gs(app.aaps.core.ui.R.string.androidaps_start) + " - " + Build.MANUFACTURER + " " + Build.MODEL,
+                            glucoseUnit = GlucoseUnit.MGDL
+                        ),
+                        action = Action.START_AAPS,
+                        source = Sources.Aaps, note = "", listValues = listOf()
+                    ).subscribe()
+            }, 10000
+        )
+        KeepAliveWorker.schedule(this@MainApp)
+        localAlertUtils.shortenSnoozeInterval()
+        localAlertUtils.preSnoozeAlarms()
+
+        //  schedule widget update
+        refreshWidget = Runnable {
+            handler.postDelayed(refreshWidget, 60000)
+            Widget.updateWidget(this@MainApp, "ScheduleEveryMin")
+        }
+        handler.postDelayed(refreshWidget, 60000)
+        config.appInitialized = true
+        aapsLogger.debug("doInit end")
     }
 
     private fun setRxErrorHandler() {
@@ -194,75 +223,248 @@ class MainApp : DaggerApplication() {
         }
     }
 
-    @Suppress("SpellCheckingInspection")
     private fun doMigrations() {
         // set values for different builds
-        if (!sp.contains(R.string.key_ns_alarms)) sp.putBoolean(R.string.key_ns_alarms, config.NSCLIENT)
-        if (!sp.contains(R.string.key_ns_announcements)) sp.putBoolean(R.string.key_ns_announcements, config.NSCLIENT)
-        if (!sp.contains(app.aaps.core.ui.R.string.key_language)) sp.putString(app.aaps.core.ui.R.string.key_language, "default")
-        // 3.1.0
-        if (sp.contains("ns_wifionly")) {
-            if (sp.getBoolean("ns_wifionly", false)) {
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_cellular, false)
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_wifi, true)
-            } else {
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_cellular, true)
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_wifi, false)
-            }
-            sp.remove("ns_wifionly")
+        // 3.3
+        if (preferences.get(IntKey.OverviewEatingSoonDuration) == 0) preferences.remove(IntKey.OverviewEatingSoonDuration)
+        if (preferences.get(UnitDoubleKey.OverviewEatingSoonTarget) == 0.0) preferences.remove(UnitDoubleKey.OverviewEatingSoonTarget)
+        if (preferences.get(IntKey.OverviewActivityDuration) == 0) preferences.remove(IntKey.OverviewActivityDuration)
+        if (preferences.get(UnitDoubleKey.OverviewActivityTarget) == 0.0) preferences.remove(UnitDoubleKey.OverviewActivityTarget)
+        if (preferences.get(IntKey.OverviewHypoDuration) == 0) preferences.remove(IntKey.OverviewHypoDuration)
+        if (preferences.get(UnitDoubleKey.OverviewHypoTarget) == 0.0) preferences.remove(UnitDoubleKey.OverviewHypoTarget)
+        if (preferences.get(UnitDoubleKey.OverviewLowMark) == 0.0) preferences.remove(UnitDoubleKey.OverviewLowMark)
+        if (preferences.get(UnitDoubleKey.OverviewHighMark) == 0.0) preferences.remove(UnitDoubleKey.OverviewHighMark)
+        if (preferences.getIfExists(BooleanKey.GeneralSimpleMode) == null)
+            preferences.put(BooleanKey.GeneralSimpleMode, !preferences.get(BooleanKey.GeneralSetupWizardProcessed))
+        // Migrate from OpenAPSSMBDynamicISFPlugin
+        if (sp.getBoolean("ConfigBuilder_APS_OpenAPSSMBDynamicISFPlugin_Enabled", false)) {
+            sp.remove("ConfigBuilder_APS_OpenAPSSMBDynamicISFPlugin_Enabled")
+            sp.remove("ConfigBuilder_APS_OpenAPSSMBDynamicISFPlugin_Visible")
+            sp.putBoolean("ConfigBuilder_APS_OpenAPSSMB_Enabled", true)
+            preferences.put(BooleanKey.ApsUseDynamicSensitivity, true)
         }
-        if (sp.contains("ns_charginonly")) {
-            if (sp.getBoolean("ns_charginonly", false)) {
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_battery, false)
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_charging, true)
-            } else {
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_battery, true)
-                sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_charging, true)
-            }
-            sp.remove("ns_charginonly")
+        // convert Double to Int
+        try {
+            val dynIsf = sp.getDouble("DynISFAdjust", 0.0)
+            if (dynIsf != 0.0 && dynIsf.toInt() != preferences.get(IntKey.ApsDynIsfAdjustmentFactor))
+                preferences.put(IntKey.ApsDynIsfAdjustmentFactor, dynIsf.toInt())
+        } catch (_: Exception) { /* ignore */
         }
-        if (!sp.contains(app.aaps.plugins.sync.R.string.key_ns_log_app_started_event))
-            sp.putBoolean(app.aaps.plugins.sync.R.string.key_ns_log_app_started_event, config.APS)
-        if (sp.getString(app.aaps.plugins.configuration.R.string.key_maintenance_logs_email, "") == "logs@androidaps.org")
-            sp.putString(app.aaps.plugins.configuration.R.string.key_maintenance_logs_email, "logs@aaps.app")
-        // fix values for theme switching
-        sp.putString(app.aaps.plugins.main.R.string.value_dark_theme, "dark")
-        sp.putString(app.aaps.plugins.main.R.string.value_light_theme, "light")
-        sp.putString(app.aaps.plugins.main.R.string.value_system_theme, "system")
+        // Clear SmsOtpPassword if wrongly replaced
+        if (preferences.get(StringKey.SmsOtpPassword).length > 10) preferences.put(StringKey.SmsOtpPassword, "")
 
+        val keys: Map<String, *> = sp.getAll()
+        // Migrate ActivityMonitor
+        for ((key, value) in keys) {
+            if (key.startsWith("Monitor") && key.endsWith("total")) {
+                val activity = key.split("_")[1]
+                if (value is String)
+                    preferences.put(LongComposedKey.ActivityMonitorTotal, activity, value = SafeParse.stringToLong(value))
+                else
+                    preferences.put(LongComposedKey.ActivityMonitorTotal, activity, value = value as Long)
+                sp.remove(key)
+            }
+            if (key.startsWith("Monitor") && key.endsWith("resumed")) {
+                val activity = key.split("_")[1]
+                if (value is String)
+                    preferences.put(LongComposedKey.ActivityMonitorResumed, activity, value = SafeParse.stringToLong(value))
+                else
+                    preferences.put(LongComposedKey.ActivityMonitorResumed, activity, value = value as Long)
+                sp.remove(key)
+            }
+            if (key.startsWith("Monitor") && key.endsWith("start")) {
+                val activity = key.split("_")[1]
+                if (value is String)
+                    preferences.put(LongComposedKey.ActivityMonitorStart, activity, value = SafeParse.stringToLong(value))
+                else
+                    preferences.put(LongComposedKey.ActivityMonitorStart, activity, value = value as Long)
+                sp.remove(key)
+            }
+        }
+        // Migrate Objectives
+        for ((key, value) in keys) {
+            if (key.startsWith("Objectives_") && key.endsWith("_started")) {
+                val objective = key.split("_")[1]
+                if (value is String)
+                    preferences.put(ObjectivesLongComposedKey.Started, objective, value = SafeParse.stringToLong(value))
+                else
+                    preferences.put(ObjectivesLongComposedKey.Started, objective, value = value as Long)
+                sp.remove(key)
+            }
+            if (key.startsWith("Objectives_") && key.endsWith("_accomplished")) {
+                val objective = key.split("_")[1]
+                if (value is String)
+                    preferences.put(ObjectivesLongComposedKey.Accomplished, objective, value = SafeParse.stringToLong(value))
+                else
+                    preferences.put(ObjectivesLongComposedKey.Accomplished, objective, value = value as Long)
+                sp.remove(key)
+            }
+        }
+        // Migrate ConfigBuilder
+        for ((key, value) in keys) {
+            if (key.startsWith("ConfigBuilder_") && key.endsWith("_Enabled")) {
+                val plugin = key.split("_")[1] + "_" + key.split("_")[2]
+                preferences.put(ConfigurationBooleanComposedKey.ConfigBuilderEnabled, plugin, value = value as Boolean)
+                sp.remove(key)
+            }
+            if (key.startsWith("ConfigBuilder_") && key.endsWith("_Visible")) {
+                val plugin = key.split("_")[1] + "_" + key.split("_")[2]
+                preferences.put(ConfigurationBooleanComposedKey.ConfigBuilderVisible, plugin, value = value as Boolean)
+                sp.remove(key)
+            }
+        }
+        // Migrate Profile
+        for ((key, value) in keys) {
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_mgdl")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedBooleanKey.LocalProfileNumberedMgdl, SafeParse.stringToInt(number), value = value as Boolean)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_isf")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedIsf, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_ic")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedIc, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_ic")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedIc, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_basal")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedBasal, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_targetlow")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedTargetLow, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_targethigh")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedTargetHigh, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_name")) {
+                val number = key.split("_")[1]
+                preferences.put(ProfileComposedStringKey.LocalProfileNumberedName, SafeParse.stringToInt(number), value = value as String)
+                sp.remove(key)
+            }
+            if (key.startsWith(Constants.LOCAL_PROFILE + "_") && key.endsWith("_dia")) {
+                val number = key.split("_")[1]
+                if (value is String)
+                    preferences.put(ProfileComposedDoubleKey.LocalProfileNumberedDia, SafeParse.stringToInt(number), value = SafeParse.stringToDouble(value))
+                else if (value is Float)
+                    preferences.put(ProfileComposedDoubleKey.LocalProfileNumberedDia, SafeParse.stringToInt(number), value = value.toDouble())
+                else
+                    preferences.put(ProfileComposedDoubleKey.LocalProfileNumberedDia, SafeParse.stringToInt(number), value = value as Double)
+                sp.remove(key)
+            }
+        }
+
+        // Migrate loop mode
+        if (config.APS && sp.contains("aps_mode")) {
+            val mode = when (sp.getString("aps_mode", "CLOSED")) {
+                "OPEN"   -> RM.Mode.OPEN_LOOP
+                "CLOSED" -> RM.Mode.CLOSED_LOOP
+                "LGS"    -> RM.Mode.CLOSED_LOOP_LGS
+                else     -> RM.Mode.CLOSED_LOOP
+            }
+            @SuppressLint("CheckResult")
+            persistenceLayer.insertOrUpdateRunningMode(
+                runningMode = RM(
+                    timestamp = dateUtil.now(),
+                    mode = mode,
+                    autoForced = false,
+                    duration = 0
+                ),
+                action = Action.CLOSED_LOOP_MODE,
+                source = Sources.Aaps,
+                listValues = listOf(ValueWithUnit.SimpleString("Migration"))
+            ).blockingGet()
+            sp.remove("aps_mode")
+        }
     }
 
     override fun applicationInjector(): AndroidInjector<out DaggerApplication> {
-        return DaggerAppComponent
+        appComponent = DaggerAppComponent
             .builder()
             .application(this)
             .build()
+        return appComponent
     }
+
+    private val timeDateReceiver = TimeDateOrTZChangeReceiver()
+    private val networkReceiver = NetworkChangeReceiver()
+    private val chargingReceiver = ChargingStateReceiver()
+    private val btReceiver = BTReceiver()
 
     private fun registerLocalBroadcastReceiver() {
         var filter = IntentFilter()
         filter.addAction(Intent.ACTION_TIME_CHANGED)
         filter.addAction(Intent.ACTION_TIMEZONE_CHANGED)
-        registerReceiver(TimeDateOrTZChangeReceiver(), filter)
+        registerReceiver(timeDateReceiver, filter)
         filter = IntentFilter()
         @Suppress("DEPRECATION")
         filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION)
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
-        registerReceiver(NetworkChangeReceiver(), filter)
+        registerReceiver(networkReceiver, filter)
         filter = IntentFilter()
         filter.addAction(Intent.ACTION_POWER_CONNECTED)
         filter.addAction(Intent.ACTION_POWER_DISCONNECTED)
         filter.addAction(Intent.ACTION_BATTERY_CHANGED)
-        registerReceiver(ChargingStateReceiver(), filter)
+        registerReceiver(chargingReceiver, filter)
         filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-        registerReceiver(BTReceiver(), filter)
+        registerReceiver(btReceiver, filter)
+    }
+
+    private fun unregisterReceivers() {
+        super.onTerminate()
+        unregisterReceiver(timeDateReceiver)
+        unregisterReceiver(networkReceiver)
+        unregisterReceiver(chargingReceiver)
+        unregisterReceiver(btReceiver)
+    }
+
+    private fun setupRemoteConfig() {
+        FirebaseApp.initializeApp(this)
+        Firebase.remoteConfig.also { firebaseRemoteConfig ->
+
+            firebaseRemoteConfig.setConfigSettingsAsync(
+                FirebaseRemoteConfigSettings
+                    .Builder()
+                    .setMinimumFetchIntervalInSeconds(3600)
+                    .build()
+            )
+            firebaseRemoteConfig
+                .fetchAndActivate()
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        aapsLogger.debug("RemoteConfig received successfully")
+                        @Suppress("UNCHECKED_CAST")
+                        (versionCheckersUtils::class.declaredMemberProperties.find { it.name == "definition" } as KMutableProperty<Any>?)
+                            ?.let {
+                                val merged = JsonHelper.merge(it.getter.call(versionCheckersUtils) as JSONObject, JSONObject(firebaseRemoteConfig.getString("defs")))
+                                it.setter.call(versionCheckersUtils, merged)
+                            }
+                    } else aapsLogger.error("RemoteConfig fetch failed")
+                }
+        }
     }
 
     override fun onTerminate() {
         aapsLogger.debug(LTag.CORE, "onTerminate")
+        handler.removeCallbacksAndMessages(null)
+        handler.looper.quitSafely()
+        unregisterReceivers()
         unregisterActivityLifecycleCallbacks(activityMonitor)
         uiInteraction.stopAlarm("onTerminate")
         super.onTerminate()

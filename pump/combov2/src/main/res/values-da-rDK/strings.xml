@@ -4,7 +4,6 @@
     <string name="combov2_plugin_description">Indbygget pumpeintegration til Accu-Chek Combo-pumper</string>
     <string name="combov2_could_not_connect">Kunne ikke forbinde til pumpen</string>
     <string name="combov2_not_paired">Ikke parret til en pumpe</string>
-    <string name="combov2_pump_terminated_connection">Pumpe afsluttede forbindelsen</string>
     <string name="combov2_warning">Combo-advarsel</string>
     <string name="combov2_error">Combo-fejl</string>
     <string name="combov2_warning_4">Ring til hotline for opdatering</string>
@@ -104,19 +103,9 @@ Hvis der ikke oprettes forbindelse efter mere end omkring 5 minutter:\n\n
     <string name="combov2_unpair_pump_summary">Frakobl AndroidAPS og Android med en pt. parret Accu-Chek Combo-pumpe</string>
     <string name="combov2_unknown_tbr_detected">Ukendt TBR blev fundet og stoppet; procent: %1$d%%; resterende varighed: %2$s</string>
     <string name="combov2_connection_error">Forbindelsesfejl: %1$s</string>
-    <string name="combov2_short_status_last_connection">Seneste forb: %1$d min siden</string>
     <string name="combov2_short_status_alert">Alarm %s</string>
-    <string name="combov2_short_status_last_bolus">Sidste bolus: %1$s @ %2$s</string>
-    <string name="combov2_short_status_temp_basal">Midl: %s</string>
-    <string name="combov2_short_status_reservoir">Reservoir: %dIE</string>
-    <string name="combov2_short_status_battery_state_empty">tom</string>
-    <string name="combov2_short_status_battery_state_low">lav</string>
-    <string name="combov2_short_status_battery_state_full">fuld</string>
-    <string name="combov2_short_status_battery_state">Batt.: %s</string>
     <string name="combov2_automatic_reservoir_entry">Detektér automatisk og indtast automatisk ændring af insulinreservoirændringer</string>
     <string name="combov2_automatic_battery_entry">Detektér automatisk og indtast automatisk ændring af batteriskift</string>
-    <string name="combov2_note_reservoir_change">Insulinreservoirændring automatisk indtastet af combov2-driver</string>
-    <string name="combov2_note_battery_change">Batteriændring indtastet automatisk af combov2-driver</string>
     <string name="combov2_timezone_changed">Tidszone ændret</string>
     <string name="combov2_datetime_changed">Dato og/eller klokkeslæt ændret</string>
     <string name="combov2_dst_started">Sommertid startet</string>

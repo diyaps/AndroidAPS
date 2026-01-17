@@ -6,22 +6,26 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import app.aaps.core.interfaces.configuration.Constants
-import app.aaps.core.interfaces.db.GlucoseUnit
+import app.aaps.core.data.configuration.Constants
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.profile.ProfileUtil
+import app.aaps.core.interfaces.protection.PasswordCheck
+import app.aaps.core.interfaces.resources.ResourceHelper
+import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.utils.SafeParse
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.UnitDoublePreferenceKey
 import app.aaps.core.ui.elements.NumberPicker
-import dagger.android.HasAndroidInjector
 import java.text.DecimalFormat
 import javax.inject.Inject
 
-class SWEditNumberWithUnits(injector: HasAndroidInjector, private val init: Double, private val minMmol: Double, private val maxMmol: Double) : SWItem(injector, Type.UNIT_NUMBER) {
-
-    @Inject lateinit var profileUtil: ProfileUtil
+class SWEditNumberWithUnits @Inject constructor(aapsLogger: AAPSLogger, rh: ResourceHelper, rxBus: RxBus, preferences: Preferences, passwordCheck: PasswordCheck, private val profileUtil: ProfileUtil) :
+    SWItem(aapsLogger, rh, rxBus, preferences, passwordCheck) {
 
     private val validator: (Double) -> Boolean =
-        if (profileUtil.units == GlucoseUnit.MMOL) { value -> value in minMmol..maxMmol }
-        else { value -> value in minMmol * Constants.MMOLL_TO_MGDL..maxMmol * Constants.MMOLL_TO_MGDL }
+        if (profileUtil.units == GlucoseUnit.MGDL) { value -> value in (preference as UnitDoublePreferenceKey).minMgdl.toDouble()..(preference as UnitDoublePreferenceKey).maxMgdl.toDouble() }
+        else { value -> value in (preference as UnitDoublePreferenceKey).minMgdl * Constants.MGDL_TO_MMOLL..(preference as UnitDoublePreferenceKey).maxMgdl * Constants.MGDL_TO_MMOLL }
     private var updateDelay = 0
 
     override fun generateDialog(layout: LinearLayout) {
@@ -41,13 +45,13 @@ class SWEditNumberWithUnits(injector: HasAndroidInjector, private val init: Doub
         label?.let { l.setText(it) }
         l.setTypeface(l.typeface, Typeface.BOLD)
         layout.addView(l)
-        var initValue = sp.getDouble(preferenceId, init)
+        var initValue = preferences.get(preference as UnitDoublePreferenceKey)
         initValue = profileUtil.valueInCurrentUnitsDetect(initValue)
         val numberPicker = NumberPicker(context)
         if (profileUtil.units == GlucoseUnit.MMOL)
-            numberPicker.setParams(initValue, minMmol, maxMmol, 0.1, DecimalFormat("0.0"), false, null, watcher)
+            numberPicker.setParams(initValue, (preference as UnitDoublePreferenceKey).minMgdl * Constants.MGDL_TO_MMOLL, (preference as UnitDoublePreferenceKey).maxMgdl * Constants.MGDL_TO_MMOLL, 0.1, DecimalFormat("0.0"), false, null, watcher)
         else
-            numberPicker.setParams(initValue, minMmol * Constants.MMOLL_TO_MGDL, maxMmol * Constants.MMOLL_TO_MGDL, 1.0, DecimalFormat("0"), false, null, watcher)
+            numberPicker.setParams(initValue, (preference as UnitDoublePreferenceKey).minMgdl.toDouble(), (preference as UnitDoublePreferenceKey).maxMgdl.toDouble(), 1.0, DecimalFormat("0"), false, null, watcher)
 
         layout.addView(numberPicker)
         val c = TextView(context)
@@ -58,8 +62,8 @@ class SWEditNumberWithUnits(injector: HasAndroidInjector, private val init: Doub
         super.generateDialog(layout)
     }
 
-    fun preferenceId(preferenceId: Int): SWEditNumberWithUnits {
-        this.preferenceId = preferenceId
+    fun preference(preference: UnitDoublePreferenceKey): SWEditNumberWithUnits {
+        this.preference = preference
         return this
     }
 

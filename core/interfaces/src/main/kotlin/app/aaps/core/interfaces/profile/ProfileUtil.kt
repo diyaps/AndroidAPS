@@ -1,11 +1,12 @@
 package app.aaps.core.interfaces.profile
 
-import app.aaps.core.interfaces.db.GlucoseUnit
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.pump.defs.PumpType
 
 interface ProfileUtil {
 
     /**
-     * Units selected in [app.aaps.core.interfaces.sharedPreferences.SP]
+     * Units selected in sharedPreferences
      *
      * @return GlucoseUnit for UI
      */
@@ -39,7 +40,7 @@ interface ProfileUtil {
 
     /**
      * Detect units of [anyBg] and return string in currently used units.
-     * Values >= 39 are expected to be in mmol/l, below in mg/dl.
+     * Values >= 36 are expected to be in mg/dl, below in mmol/l.
      *
      * @param anyBg value either in mmol/l or mg/dl
      * @return formatted string in current units
@@ -68,7 +69,7 @@ interface ProfileUtil {
      * Test if value is in mg/dl.
      *
      * @param anyBg glycemia
-     * @return true if value < 39
+     * @return true if value >= 36
      */
     fun isMgdl(anyBg: Double): Boolean
 
@@ -76,7 +77,7 @@ interface ProfileUtil {
      * Test if value is in mmol/l
      *
      * @param anyBg glycemia
-     * @return true if value >= 39
+     * @return true if value < 36
      */
     fun isMmol(anyBg: Double): Boolean
 
@@ -84,7 +85,7 @@ interface ProfileUtil {
      * Detect units of [anyBg]
      *
      * @param anyBg glycemia
-     * @return [GlucoseUnit.MMOL] if value >= 39 otherwise [GlucoseUnit.MGDL]
+     * @return [GlucoseUnit.MMOL] if value < 36 otherwise [GlucoseUnit.MGDL]
      */
     fun unitsDetect(anyBg: Double): GlucoseUnit
 
@@ -99,7 +100,7 @@ interface ProfileUtil {
 
     /**
      * Detect units of [anyBg] and return string in [targetUnits]
-     * Values >= 39 are expected to be in mmol/l, below in mg/dl.
+     * Values >= 36 are expected to be in mg/dl, below in mmol/l.
      *
      * @param anyBg value either in mmol/l or mg/dl
      * @return formatted string
@@ -108,7 +109,7 @@ interface ProfileUtil {
 
     /**
      * Detect units and convert value to mg/dl
-     * Values >= 39 are expected to be in mmol/l, below in mg/dl.
+     * Values >= 36 are expected to be in mg/dl, below in mmol/l.
      *
      * @param anyBg in any units
      * @return value in mg/dl
@@ -143,4 +144,12 @@ interface ProfileUtil {
      */
     //
     fun toTargetRangeString(low: Double, high: Double, sourceUnits: GlucoseUnit, targetUnits: GlucoseUnit = units): String
+
+    /**
+     * Get basal profile list as displayable string
+     *
+     * @param profiles list of basals
+     * @param pumpType
+     */
+    fun getBasalProfilesDisplayable(profiles: Array<Profile.ProfileValue>, pumpType: PumpType): String
 }

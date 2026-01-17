@@ -1,7 +1,6 @@
 package app.aaps.plugins.sync.nsclient.services
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.Handler
@@ -10,6 +9,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
 import androidx.work.OneTimeWorkRequest
+import app.aaps.core.data.time.T.Companion.mins
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
@@ -19,13 +19,27 @@ import app.aaps.core.interfaces.nsclient.StoreDataForDb
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.rx.events.*
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.rx.events.EventAppExit
+import app.aaps.core.interfaces.rx.events.EventConfigBuilderChange
+import app.aaps.core.interfaces.rx.events.EventDeviceStatusChange
+import app.aaps.core.interfaces.rx.events.EventDismissNotification
+import app.aaps.core.interfaces.rx.events.EventNSClientNewLog
+import app.aaps.core.interfaces.rx.events.EventNSClientRestart
+import app.aaps.core.interfaces.rx.events.EventNewHistoryData
+import app.aaps.core.interfaces.rx.events.EventNewNotification
+import app.aaps.core.interfaces.rx.events.EventPreferenceChange
+import app.aaps.core.interfaces.rx.events.EventProfileStoreChanged
+import app.aaps.core.interfaces.rx.events.EventProfileSwitchChanged
+import app.aaps.core.interfaces.rx.events.EventRunningModeChange
+import app.aaps.core.interfaces.rx.events.EventTempTargetChange
+import app.aaps.core.interfaces.rx.events.EventTherapyEventChange
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
-import app.aaps.core.interfaces.utils.T.Companion.mins
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
-import app.aaps.core.main.events.EventNewNotification
+import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.LongComposedKey
+import app.aaps.core.keys.StringKey
+import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.nssdk.localmodel.devicestatus.NSDeviceStatus
 import app.aaps.core.utils.JsonHelper.safeGetString
 import app.aaps.core.utils.JsonHelper.safeGetStringAllowNull
@@ -45,12 +59,12 @@ import app.aaps.plugins.sync.nsclient.data.AlarmAck
 import app.aaps.plugins.sync.nsclient.data.NSDeviceStatusHandler
 import app.aaps.plugins.sync.nsclient.workers.NSClientAddUpdateWorker
 import app.aaps.plugins.sync.nsclient.workers.NSClientMbgWorker
+import app.aaps.plugins.sync.nsclientV3.keys.NsclientBooleanKey
 import com.google.common.base.Charsets
 import com.google.common.hash.Hashing
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializer
 import dagger.android.DaggerService
-import dagger.android.HasAndroidInjector
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import io.socket.client.IO
@@ -65,20 +79,19 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.net.URISyntaxException
-import java.util.*
+import java.util.Locale
 import javax.inject.Inject
 
 @Suppress("SpellCheckingInspection")
 class NSClientService : DaggerService() {
 
-    @Inject lateinit var injector: HasAndroidInjector
     @Inject lateinit var aapsLogger: AAPSLogger
     @Inject lateinit var aapsSchedulers: AapsSchedulers
     @Inject lateinit var nsSettingsStatus: NSSettingsStatus
     @Inject lateinit var nsDeviceStatusHandler: NSDeviceStatusHandler
     @Inject lateinit var rxBus: RxBus
     @Inject lateinit var rh: ResourceHelper
-    @Inject lateinit var sp: SP
+    @Inject lateinit var preferences: Preferences
     @Inject lateinit var fabricPrivacy: FabricPrivacy
     @Inject lateinit var nsClientPlugin: NSClientPlugin
     @Inject lateinit var config: Config
@@ -121,7 +134,7 @@ class NSClientService : DaggerService() {
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
-        wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AndroidAPS:NSClientService")
+        wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AndroidAPS:NSClientService")
         wakeLock?.acquire()
         initialize()
         disposable += rxBus
@@ -138,9 +151,9 @@ class NSClientService : DaggerService() {
             .toObservable(EventPreferenceChange::class.java)
             .observeOn(aapsSchedulers.io)
             .subscribe({ event: EventPreferenceChange ->
-                           if (event.isChanged(rh.gs(app.aaps.core.utils.R.string.key_nsclientinternal_url)) ||
-                               event.isChanged(rh.gs(app.aaps.core.utils.R.string.key_nsclientinternal_api_secret)) ||
-                               event.isChanged(rh.gs(R.string.key_ns_paused))
+                           if (event.isChanged(StringKey.NsClientUrl.key) ||
+                               event.isChanged(StringKey.NsClientApiSecret.key) ||
+                               event.isChanged(NsclientBooleanKey.NsPaused.key)
                            ) {
                                latestDateInReceivedData = 0
                                destroy()
@@ -195,7 +208,7 @@ class NSClientService : DaggerService() {
             .observeOn(aapsSchedulers.io)
             .subscribe({ resend("EventTherapyEventChange") }, fabricPrivacy::logException)
         disposable += rxBus
-            .toObservable(EventOfflineChange::class.java)
+            .toObservable(EventRunningModeChange::class.java)
             .observeOn(aapsSchedulers.io)
             .subscribe({ resend("EventOfflineChange") }, fabricPrivacy::logException)
         disposable += rxBus
@@ -207,6 +220,8 @@ class NSClientService : DaggerService() {
     override fun onDestroy() {
         super.onDestroy()
         disposable.clear()
+        handler.removeCallbacksAndMessages(null)
+        handler.looper.quitSafely()
         if (wakeLock?.isHeld == true) wakeLock?.release()
     }
 
@@ -253,7 +268,7 @@ class NSClientService : DaggerService() {
         if (!nsClientPlugin.isAllowed) {
             rxBus.send(EventNSClientNewLog("● NSCLIENT", nsClientPlugin.blockingReason))
             rxBus.send(EventNSClientStatus(nsClientPlugin.blockingReason))
-        } else if (sp.getBoolean(R.string.key_ns_paused, false)) {
+        } else if (preferences.get(NsclientBooleanKey.NsPaused)) {
             rxBus.send(EventNSClientNewLog("● NSCLIENT", "paused"))
             rxBus.send(EventNSClientStatus("Paused"))
         } else if (!nsEnabled) {
@@ -274,10 +289,10 @@ class NSClientService : DaggerService() {
                     socket.on("urgent_alarm", onUrgentAlarm)
                     socket.on("clear_alarm", onClearAlarm)
                 }
-            } catch (e: URISyntaxException) {
+            } catch (_: URISyntaxException) {
                 rxBus.send(EventNSClientNewLog("● NSCLIENT", "Wrong URL syntax"))
                 rxBus.send(EventNSClientStatus("Wrong URL syntax"))
-            } catch (e: RuntimeException) {
+            } catch (_: RuntimeException) {
                 rxBus.send(EventNSClientNewLog("● NSCLIENT", "Wrong URL syntax"))
                 rxBus.send(EventNSClientStatus("Wrong URL syntax"))
             }
@@ -361,9 +376,9 @@ class NSClientService : DaggerService() {
 
     private fun readPreferences() {
         nsEnabled = nsClientPlugin.isEnabled()
-        nsURL = sp.getString(app.aaps.core.utils.R.string.key_nsclientinternal_url, "")
-        nsAPISecret = sp.getString(app.aaps.core.utils.R.string.key_nsclientinternal_api_secret, "")
-        nsDevice = sp.getString("careportal_enteredby", "")
+        nsURL = preferences.get(StringKey.NsClientUrl)
+        nsAPISecret = preferences.get(StringKey.NsClientApiSecret)
+        nsDevice = "AAPS"
     }
 
     private val onAnnouncement = Emitter.Listener { args ->
@@ -464,7 +479,7 @@ class NSClientService : DaggerService() {
                             // take the newest
                             val profileStoreJson = profiles[profiles.length() - 1] as JSONObject
                             rxBus.send(EventNSClientNewLog("◄ PROFILE", "profile received"))
-                            nsIncomingDataProcessor.processProfile(profileStoreJson)
+                            nsIncomingDataProcessor.processProfile(profileStoreJson, false)
                         }
                     }
                     if (data.has("treatments")) {
@@ -524,7 +539,11 @@ class NSClientService : DaggerService() {
                                 }
                             }
 
-                            val devicestatuses = gson.fromJson(data.getString("devicestatus"), Array<NSDeviceStatus>::class.java)
+                            val devicestatuses = try {
+                                gson.fromJson(data.getString("devicestatus"), Array<NSDeviceStatus>::class.java)
+                            } catch (_: Exception) {
+                                emptyArray<NSDeviceStatus>()
+                            }
                             if (devicestatuses.isNotEmpty()) {
                                 rxBus.send(EventNSClientNewLog("◄ DATA", "received " + devicestatuses.size + " device statuses"))
                                 nsDeviceStatusHandler.handleNewData(devicestatuses)
@@ -557,9 +576,7 @@ class NSClientService : DaggerService() {
                         val sgvs = data.getJSONArray("sgvs")
                         if (sgvs.length() > 0) {
                             rxBus.send(EventNSClientNewLog("◄ DATA", "received " + sgvs.length() + " sgvs"))
-                            // Objective0
-                            sp.putBoolean(app.aaps.core.utils.R.string.key_objectives_bg_is_available_in_ns, true)
-                            nsIncomingDataProcessor.processSgvs(sgvs)
+                            nsIncomingDataProcessor.processSgvs(sgvs, false)
                             storeDataForDb.storeGlucoseValuesToDb()
                         }
                     }
@@ -583,7 +600,7 @@ class NSClientService : DaggerService() {
             message.put("collection", collection)
             message.put("_id", _id)
             message.put("data", data)
-            socket?.emit("dbUpdate", message, NSUpdateAck("dbUpdate", _id, aapsLogger, rxBus, this, dateUtil, dataWorkerStorage, originalObject))
+            socket?.emit("dbUpdate", message, NSUpdateAck("dbUpdate", _id, aapsLogger, this, dateUtil, dataWorkerStorage, originalObject))
             rxBus.send(
                 EventNSClientNewLog(
                     "► UPDATE $collection", "Sent " + originalObject.javaClass.simpleName + " " +
@@ -635,22 +652,20 @@ class NSClientService : DaggerService() {
     }
 
     private fun handleAnnouncement(announcement: JSONObject) {
-        val defaultVal = config.NSCLIENT
-        if (sp.getBoolean(app.aaps.core.utils.R.string.key_ns_announcements, defaultVal)) {
+        if (preferences.get(BooleanKey.NsClientNotificationsFromAnnouncements)) {
             val nsAlarm = NSAlarmObject(announcement)
-            uiInteraction.addNotificationWithAction(injector, nsAlarm)
+            uiInteraction.addNotificationWithAction(nsAlarm)
             rxBus.send(EventNSClientNewLog("◄ ANNOUNCEMENT", safeGetString(announcement, "message", "received")))
             aapsLogger.debug(LTag.NSCLIENT, announcement.toString())
         }
     }
 
     private fun handleAlarm(alarm: JSONObject) {
-        val defaultVal = config.NSCLIENT
-        if (sp.getBoolean(app.aaps.core.utils.R.string.key_ns_alarms, defaultVal)) {
-            val snoozedTo = sp.getLong(rh.gs(app.aaps.core.utils.R.string.key_snoozed_to) + alarm.optString("level"), 0L)
+        if (preferences.get(BooleanKey.NsClientNotificationsFromAlarms)) {
+            val snoozedTo = preferences.get(LongComposedKey.NotificationSnoozedTo, alarm.optString("level"))
             if (snoozedTo == 0L || System.currentTimeMillis() > snoozedTo) {
                 val nsAlarm = NSAlarmObject(alarm)
-                uiInteraction.addNotificationWithAction(injector, nsAlarm)
+                uiInteraction.addNotificationWithAction(nsAlarm)
             }
             rxBus.send(EventNSClientNewLog("◄ ALARM", safeGetString(alarm, "message", "received")))
             aapsLogger.debug(LTag.NSCLIENT, alarm.toString())
@@ -658,12 +673,11 @@ class NSClientService : DaggerService() {
     }
 
     private fun handleUrgentAlarm(alarm: JSONObject) {
-        val defaultVal = config.NSCLIENT
-        if (sp.getBoolean(app.aaps.core.utils.R.string.key_ns_alarms, defaultVal)) {
-            val snoozedTo = sp.getLong(rh.gs(app.aaps.core.utils.R.string.key_snoozed_to) + alarm.optString("level"), 0L)
+        if (preferences.get(BooleanKey.NsClientNotificationsFromAlarms)) {
+            val snoozedTo = preferences.get(LongComposedKey.NotificationSnoozedTo, alarm.optString("level"))
             if (snoozedTo == 0L || System.currentTimeMillis() > snoozedTo) {
                 val nsAlarm = NSAlarmObject(alarm)
-                uiInteraction.addNotificationWithAction(injector, nsAlarm)
+                uiInteraction.addNotificationWithAction(nsAlarm)
             }
             rxBus.send(EventNSClientNewLog("◄ URGENTALARM", safeGetString(alarm, "message", "received")))
             aapsLogger.debug(LTag.NSCLIENT, alarm.toString())

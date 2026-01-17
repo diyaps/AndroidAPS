@@ -2,7 +2,6 @@ package app.aaps.plugins.main.general.smsCommunicator.activities
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.res.Resources
 import android.graphics.Color
 import android.os.Bundle
@@ -10,6 +9,8 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.view.WindowManager
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.logging.UserEntryLogger
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.smsCommunicator.SmsCommunicator
@@ -17,8 +18,6 @@ import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.ui.activities.TranslatedDaggerAppCompatActivity
 import app.aaps.core.ui.dialogs.OKDialog
 import app.aaps.core.ui.toast.ToastUtils
-import app.aaps.database.entities.UserEntry.Action
-import app.aaps.database.entities.UserEntry.Sources
 import app.aaps.plugins.main.R
 import app.aaps.plugins.main.databinding.SmscommunicatorActivityOtpBinding
 import app.aaps.plugins.main.general.smsCommunicator.otp.OneTimePassword
@@ -37,6 +36,7 @@ class SmsCommunicatorOtpActivity : TranslatedDaggerAppCompatActivity() {
     @Inject lateinit var rh: ResourceHelper
 
     private lateinit var binding: SmscommunicatorActivityOtpBinding
+    private var otpTextWatcher: TextWatcher? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,7 +49,7 @@ class SmsCommunicatorOtpActivity : TranslatedDaggerAppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowHomeEnabled(true)
 
-        binding.otpVerifyEdit.addTextChangedListener(object : TextWatcher {
+        otpTextWatcher = object : TextWatcher {
             override fun afterTextChanged(s: Editable) {
                 val checkResult = otp.checkOTP(s.toString())
 
@@ -77,7 +77,8 @@ class SmsCommunicatorOtpActivity : TranslatedDaggerAppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 /* left blank because we only need afterTextChanged */
             }
-        })
+        }
+        binding.otpVerifyEdit.addTextChangedListener(otpTextWatcher)
 
         binding.otpReset.setOnClickListener {
             OKDialog.showConfirmation(
@@ -98,7 +99,7 @@ class SmsCommunicatorOtpActivity : TranslatedDaggerAppCompatActivity() {
                 rh.gs(R.string.smscommunicator_otp_export_title),
                 rh.gs(R.string.smscommunicator_otp_export_prompt),
                 Runnable {
-                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText("OTP Secret", otp.provisioningSecret())
                     clipboard.setPrimaryClip(clip)
                     ToastUtils.Long.infoToast(this, rh.gs(R.string.smscommunicator_otp_export_successful))
@@ -113,6 +114,13 @@ class SmsCommunicatorOtpActivity : TranslatedDaggerAppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateGui()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        otpTextWatcher?.let { binding.otpVerifyEdit.removeTextChangedListener(it) }
+        binding.otpReset.setOnClickListener(null)
+        binding.otpProvisioning.setOnLongClickListener(null)
     }
 
     private fun updateGui() {

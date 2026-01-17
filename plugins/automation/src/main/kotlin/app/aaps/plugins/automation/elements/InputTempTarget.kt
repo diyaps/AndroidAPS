@@ -2,8 +2,8 @@ package app.aaps.plugins.automation.elements
 
 import android.view.Gravity
 import android.widget.LinearLayout
-import app.aaps.core.interfaces.configuration.Constants
-import app.aaps.core.interfaces.db.GlucoseUnit
+import app.aaps.core.data.configuration.Constants
+import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.ui.elements.NumberPicker
 import java.text.DecimalFormat
@@ -16,11 +16,6 @@ class InputTempTarget(profileFunction: ProfileFunction) : Element {
     init {
         units = profileFunction.getUnits()
         value = if (units == GlucoseUnit.MMOL) 6.0 else 110.0
-    }
-
-    constructor(profileFunction: ProfileFunction, inputTempTarget: InputTempTarget) : this(profileFunction) {
-        value = inputTempTarget.value
-        units = inputTempTarget.units
     }
 
     override fun addToLayout(root: LinearLayout) {

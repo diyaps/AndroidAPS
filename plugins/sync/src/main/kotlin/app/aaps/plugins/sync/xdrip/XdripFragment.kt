@@ -19,7 +19,7 @@ import app.aaps.core.interfaces.plugin.PluginFragment
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sync.DataSyncSelectorXdrip
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.ui.dialogs.OKDialog
 import app.aaps.plugins.sync.R
@@ -32,12 +32,11 @@ import javax.inject.Inject
 
 class XdripFragment : DaggerFragment(), MenuProvider, PluginFragment {
 
-    @Inject lateinit var sp: SP
     @Inject lateinit var rh: ResourceHelper
     @Inject lateinit var rxBus: RxBus
     @Inject lateinit var fabricPrivacy: FabricPrivacy
     @Inject lateinit var aapsSchedulers: AapsSchedulers
-    @Inject lateinit var dataSyncSelector: DataSyncSelectorXdripImpl
+    @Inject lateinit var dataSyncSelector: DataSyncSelectorXdrip
     @Inject lateinit var aapsLogger: AAPSLogger
     @Inject lateinit var xdripPlugin: XdripPlugin
     @Inject lateinit var config: Config
@@ -81,7 +80,7 @@ class XdripFragment : DaggerFragment(), MenuProvider, PluginFragment {
             ID_MENU_FULL_SYNC -> {
                 context?.let { context ->
                     OKDialog.showConfirmation(
-                        context, rh.gs(R.string.ns_client), rh.gs(R.string.full_sync_comment),
+                        context, rh.gs(R.string.xdrip), rh.gs(R.string.full_xdrip_sync_comment),
                         Runnable { handler.post { dataSyncSelector.resetToNextFullSync() } }
                     )
                 }
@@ -91,7 +90,6 @@ class XdripFragment : DaggerFragment(), MenuProvider, PluginFragment {
             else              -> false
         }
 
-    @Synchronized
     override fun onResume() {
         super.onResume()
         disposable += rxBus
@@ -101,9 +99,21 @@ class XdripFragment : DaggerFragment(), MenuProvider, PluginFragment {
         updateGui()
     }
 
-    @Synchronized override fun onPause() {
+    override fun onPause() {
         super.onPause()
         disposable.clear()
+        handler.removeCallbacksAndMessages(null)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
+        handler.looper.quitSafely()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun updateGui() {
