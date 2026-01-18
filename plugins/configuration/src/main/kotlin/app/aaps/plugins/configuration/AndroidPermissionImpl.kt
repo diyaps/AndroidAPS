@@ -7,6 +7,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -84,6 +85,20 @@ class AndroidPermissionImpl @Inject constructor(
         return !selfCheck
     }
 
+    /**
+     * 新增方法：统一判断蓝牙权限，兼容 Android 11 / 12+
+     */
+    private fun hasBluetoothPermission(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            !permissionNotGranted(context, Manifest.permission.BLUETOOTH_CONNECT) &&
+            !permissionNotGranted(context, Manifest.permission.BLUETOOTH_SCAN)
+        } else {
+            !permissionNotGranted(context, Manifest.permission.BLUETOOTH) &&
+            !permissionNotGranted(context, Manifest.permission.BLUETOOTH_ADMIN) &&
+            !permissionNotGranted(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
     @Synchronized
     override fun notifyForSMSPermissions(activity: FragmentActivity) {
         if (permissionNotGranted(activity, Manifest.permission.RECEIVE_SMS))
@@ -106,21 +121,31 @@ class AndroidPermissionImpl @Inject constructor(
     @SuppressLint("MissingPermission")
     @Synchronized
     override fun notifyForBtConnectPermission(activity: FragmentActivity) {
-        if (activePlugin.activePump !is VirtualPump)
-        //  Manifest.permission.BLUETOOTH_CONNECT
-            if (permissionNotGranted(activity, Manifest.permission.BLUETOOTH_CONNECT) || permissionNotGranted(activity, Manifest.permission.BLUETOOTH_SCAN))
+        if (activePlugin.activePump !is VirtualPump) {
+            if (!hasBluetoothPermission(activity)) {
                 uiInteraction.addNotification(
                     id = Notification.PERMISSION_BT,
                     text = rh.gs(app.aaps.core.ui.R.string.need_connect_permission),
                     level = Notification.URGENT,
                     actionButtonId = R.string.request,
-                    action = { askForPermission(activity, arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)) },
-                    validityCheck = { permissionNotGranted(activity, Manifest.permission.BLUETOOTH_CONNECT) || permissionNotGranted(activity, Manifest.permission.BLUETOOTH_SCAN) }
+                    action = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            askForPermission(activity, arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT))
+                        } else {
+                            askForPermission(activity, arrayOf(
+                                Manifest.permission.BLUETOOTH,
+                                Manifest.permission.BLUETOOTH_ADMIN,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            ))
+                        }
+                    },
+                    validityCheck = { !hasBluetoothPermission(activity) }
                 )
-            else {
+            } else {
                 activity.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
                 uiInteraction.dismissNotification(Notification.PERMISSION_BT)
             }
+        }
     }
 
     @Synchronized
@@ -137,7 +162,8 @@ class AndroidPermissionImpl @Inject constructor(
         else uiInteraction.dismissNotification(Notification.PERMISSION_BATTERY)
     }
 
-    @Synchronized override fun notifyForStoragePermission(activity: FragmentActivity) {
+    @Synchronized
+    override fun notifyForStoragePermission(activity: FragmentActivity) {
         if (permissionNotGranted(activity, Manifest.permission.READ_EXTERNAL_STORAGE))
             uiInteraction.addNotification(
                 id = Notification.PERMISSION_STORAGE,
@@ -150,7 +176,8 @@ class AndroidPermissionImpl @Inject constructor(
         else uiInteraction.dismissNotification(Notification.PERMISSION_STORAGE)
     }
 
-    @Synchronized override fun notifyForLocationPermissions(activity: FragmentActivity) {
+    @Synchronized
+    override fun notifyForLocationPermissions(activity: FragmentActivity) {
         if (permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) ||
             permissionNotGranted(activity, Manifest.permission.ACCESS_COARSE_LOCATION)
         ) {
@@ -174,8 +201,8 @@ class AndroidPermissionImpl @Inject constructor(
         } else uiInteraction.dismissNotification(Notification.PERMISSION_LOCATION)
     }
 
-    @Synchronized override fun notifyForSystemWindowPermissions(activity: FragmentActivity) {
-        // Check if Android Q or higher
+    @Synchronized
+    override fun notifyForSystemWindowPermissions(activity: FragmentActivity) {
         if (!Settings.canDrawOverlays(activity))
             uiInteraction.addNotification(
                 id = Notification.PERMISSION_SYSTEM_WINDOW,
@@ -183,8 +210,6 @@ class AndroidPermissionImpl @Inject constructor(
                 level = Notification.URGENT,
                 actionButtonId = R.string.request,
                 action = {
-                    // Show alert dialog to the user saying a separate permission is needed
-                    // Launch the settings activity if the user prefers
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         ("package:" + activity.packageName).toUri()
