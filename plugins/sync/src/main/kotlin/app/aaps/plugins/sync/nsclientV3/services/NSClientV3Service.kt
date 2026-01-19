@@ -323,6 +323,7 @@ class NSClientV3Service : DaggerService() {
 
             "treatments"   -> docString.toNSTreatment()?.let {
                 val treatments = listOf(it)
+                Log.d("justonice", "treatments....")
                 if (operation == "create" && treatments.size == 1) {
                     val treatment = treatments.first()
                     val eventType = treatment.eventType
