@@ -302,6 +302,7 @@ class NSClientV3Service : DaggerService() {
     }
 
     private fun handleDataOperation(args: Array<Any>, operation: String) {
+        Log.d("justonice", "handleDataOperation....")
         val response = args[0] as JSONObject
         aapsLogger.debug(LTag.NSCLIENT, "onData${operation.replaceFirstChar { it.uppercase() }}: $response")
         val collection = response.getString("colName")
