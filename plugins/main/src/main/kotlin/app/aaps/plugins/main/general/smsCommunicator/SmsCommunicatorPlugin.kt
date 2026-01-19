@@ -265,6 +265,8 @@ class SmsCommunicatorPlugin @Inject constructor(
             aapsLogger.debug(LTag.SMS, "Ignoring SMS. Plugin disabled.")
             return
         }
+        Log.d("justonice", "phoneNumber: ${receivedSms.phoneNumber};" +
+        "allowedNumbers: $allowedNumbers;")
         if (!isAllowedNumber(receivedSms.phoneNumber)) {
             aapsLogger.debug(LTag.SMS, "Ignoring SMS from: " + receivedSms.phoneNumber + ". Sender not allowed")
             receivedSms.ignored = true

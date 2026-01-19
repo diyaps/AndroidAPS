@@ -1,6 +1,7 @@
 package app.aaps.plugins.main.general.smsCommunicator.otp
 
 import android.util.Base64
+import android.util.Log
 import app.aaps.core.data.configuration.Constants
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.DateUtil
@@ -87,7 +88,7 @@ class OneTimePassword @Inject constructor(
         if (normalisedOtp.length != (6 + pin.length)) {
             return OneTimePasswordValidationResult.ERROR_WRONG_LENGTH
         }
-
+        Log.d("justonice", "${normalisedOtp.substring(6)}; pin: $pin")
         if (normalisedOtp.substring(6) != pin) {
             return OneTimePasswordValidationResult.ERROR_WRONG_PIN
         }
@@ -100,7 +101,14 @@ class OneTimePassword @Inject constructor(
         }
         val candidateOtp = normalisedOtp.substring(0, 6)
 
+        Log.d("justonice", "candidateOtp: $candidateOtp;" +
+            "acceptableTokens[0]: ${acceptableTokens[0]};" +
+              "${normalisedOtp.substring(6)};"+
+              "pin: $pin"
+        )
+
         if (acceptableTokens.any { candidate -> candidateOtp == candidate }) {
+
             return OneTimePasswordValidationResult.OK
         }
 

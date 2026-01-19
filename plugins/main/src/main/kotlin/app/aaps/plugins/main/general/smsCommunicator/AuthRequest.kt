@@ -1,6 +1,7 @@
 package app.aaps.plugins.main.general.smsCommunicator
 
 import android.os.SystemClock
+import android.util.Log
 import app.aaps.core.data.configuration.Constants
 import app.aaps.core.data.time.T
 import app.aaps.core.interfaces.logging.AAPSLogger
@@ -44,6 +45,7 @@ class AuthRequest(
         otp.checkOTP(toValidate) == OneTimePasswordValidationResult.OK
 
     fun action(codeReceived: String) {
+        Log.d("justonice", codeReceived)
         if (processed) {
             aapsLogger.debug(LTag.SMS, "Already processed")
             return
