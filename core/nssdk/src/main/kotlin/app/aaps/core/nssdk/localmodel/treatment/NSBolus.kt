@@ -3,6 +3,10 @@ package app.aaps.core.nssdk.localmodel.treatment
 import app.aaps.core.nssdk.localmodel.entry.NsUnits
 
 data class NSBolus(
+    override val _remoteEventType: RemoteEventType?,
+    override val _phoneNumber: String?,
+    override val _insulin: Double?,
+    override var _status: String?,
     override var date: Long?,
     override val device: String? = null,
     override val identifier: String?,
@@ -22,8 +26,7 @@ data class NSBolus(
     override var app: String? = null,
     val insulin: Double,
     val type: BolusType,
-    val isBasalInsulin: Boolean
-
+    val isBasalInsulin: Boolean,
 ) : NSTreatment {
 
     enum class BolusType {

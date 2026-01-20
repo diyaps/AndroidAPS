@@ -20,6 +20,7 @@ internal data class RemoteTreatment(
     @SerializedName("_insulin") val _insulin: Double? = null,
     @SerializedName("_remoteEventType") val _remoteEventType: RemoteEventType? = null,
     @SerializedName("_phoneNumber") val _phoneNumber: String? = null,
+    @SerializedName("_status") val _status: String? = null,
     ///////////////////////////////
     @SerializedName("identifier") val identifier: String?,       // string Main addressing, required field that identifies document in the collection. The client should not create the identifier, the server automatically assigns it when the document is inserted.
     @SerializedName("date") var date: Long? = null,                    // integer($int64) or string required timestamp when the record or event occurred, you can choose from three input formats Unix epoch in milliseconds (1525383610088), Unix epoch in seconds (1525383610), ISO 8601 with optional timezone ('2018-05-03T21:40:10.088Z' or '2018-05-03T23:40:10.088+02:00')

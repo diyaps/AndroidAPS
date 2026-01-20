@@ -9,7 +9,6 @@ import app.aaps.core.nssdk.localmodel.treatment.NSEffectiveProfileSwitch
 import app.aaps.core.nssdk.localmodel.treatment.NSExtendedBolus
 import app.aaps.core.nssdk.localmodel.treatment.NSOfflineEvent
 import app.aaps.core.nssdk.localmodel.treatment.NSProfileSwitch
-import app.aaps.core.nssdk.localmodel.treatment.NSRemoteBolus
 import app.aaps.core.nssdk.localmodel.treatment.NSTemporaryBasal
 import app.aaps.core.nssdk.localmodel.treatment.NSTemporaryTarget
 import app.aaps.core.nssdk.localmodel.treatment.NSTherapyEvent
@@ -36,7 +35,7 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
     val treatmentTimestamp = timestamp()
     when {
         _remoteEventType === RemoteEventType.MEAL_BOLUS && _insulin !== null && _insulin > 0 ->
-            return NSRemoteBolus(
+            return NSBolus(
                 date = treatmentTimestamp,
                 device = this.device,
                 identifier = this.identifier,
@@ -54,8 +53,8 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
                 pumpType = this.pumpType,
                 pumpSerial = this.pumpSerial,
                 _insulin = this._insulin,
-                type = NSRemoteBolus.BolusType.fromString(this.type),
-                isBasalInsulin = isBasalInsulin == true
+                type = NSBolus.BolusType.fromString(this.type),
+                isBasalInsulin = isBasalInsulin == true,
             )
         insulin != null && insulin > 0                                     ->
             return NSBolus(
@@ -77,7 +76,12 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
                 pumpSerial = this.pumpSerial,
                 insulin = this.insulin,
                 type = NSBolus.BolusType.fromString(this.type),
-                isBasalInsulin = isBasalInsulin == true
+                isBasalInsulin = isBasalInsulin == true,
+                _remoteEventType = this._remoteEventType,
+                _phoneNumber = this._phoneNumber,
+                _insulin = this._insulin,
+                _status = this._status,
+                app = this.app
             )
 
         carbs != null && carbs != 0.0                                         ->

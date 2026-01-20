@@ -27,6 +27,10 @@ data class NSEffectiveProfileSwitch(
     val originalTimeshift: Long,
     val originalPercentage: Int,
     val originalDuration: Long,
-    val originalEnd: Long
+    val originalEnd: Long,
+    override val _remoteEventType: RemoteEventType?,
+    override val _phoneNumber: String?,
+    override val _insulin: Double?,
+    override var _status: String?
 
 ) : NSTreatment

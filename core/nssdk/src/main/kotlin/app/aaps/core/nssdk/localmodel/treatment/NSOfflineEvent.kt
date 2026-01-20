@@ -20,6 +20,10 @@ data class NSOfflineEvent(
     override val pumpType: String?,
     override val pumpSerial: String?,
     override var app: String? = null,
+    override val _remoteEventType: RemoteEventType?,
+    override val _phoneNumber: String?,
+    override val _insulin: Double?,
+    override var _status: String?,
     val duration: Long,
     val reason: Reason
 ) : NSTreatment {

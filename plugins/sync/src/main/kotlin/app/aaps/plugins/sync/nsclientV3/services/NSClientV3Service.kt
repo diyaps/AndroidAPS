@@ -48,6 +48,10 @@ import java.net.URISyntaxException
 import javax.inject.Inject
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 @Suppress("SpellCheckingInspection")
 class NSClientV3Service : DaggerService() {
@@ -270,14 +274,30 @@ class NSClientV3Service : DaggerService() {
     }
 
     lateinit var  remoteTreatment: NSTreatment;
-    private fun processRemoteInject(operation: String,treatment: NSTreatment) {
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun processRemoteInject(operation: String, treatment: NSTreatment) {
         val _phoneNumber = treatment._phoneNumber
         val _insulin = treatment._insulin
         if (allowedNumbers.contains(_phoneNumber)) {
             if (operation == "create") {
                 treatment._status = "PENDING"
                 remoteTreatment = treatment
-                // api.updateTreatment(remoteTreatment, identifier)
+                GlobalScope.launch(Dispatchers.IO) {
+                    try {
+                        val result = nsClientV3Plugin.nsAndroidClient?.updateTreatment(remoteTreatment)
+                        // 处理结果
+                        if (result?.response == 200) {
+                            // 更新成功
+                            rxBus.send(EventNSClientNewLog("◄ UPDATE", "Treatment updated successfully"))
+                        } else {
+                            // 更新失败
+                            rxBus.send(EventNSClientNewLog("◄ ERROR", "Failed to update treatment: ${result?.errorResponse}"))
+                        }
+                    } catch (e: Exception) {
+                        aapsLogger.error(LTag.NSCLIENT, "Error updating treatment", e)
+                        rxBus.send(EventNSClientNewLog("◄ ERROR", "Exception updating treatment: ${e.message}"))
+                    }
+                }
                 return
             }
             // if (operation == "update") {

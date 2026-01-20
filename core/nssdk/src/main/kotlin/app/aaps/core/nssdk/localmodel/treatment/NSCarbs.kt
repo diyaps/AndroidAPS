@@ -21,5 +21,9 @@ data class NSCarbs(
     override val pumpSerial: String?,
     override var app: String? = null,
     val carbs: Double,
-    val duration: Long?
+    val duration: Long?,
+    override val _remoteEventType: RemoteEventType?,
+    override val _phoneNumber: String?,
+    override val _insulin: Double?,
+    override var _status: String?
 ) : NSTreatment
