@@ -2,7 +2,14 @@ package app.aaps.core.nssdk.localmodel.treatment
 
 import app.aaps.core.nssdk.localmodel.entry.NsUnits
 
+
 interface NSTreatment {
+    ///////////////////////////////
+    val _remoteEventType: RemoteEventType?
+    val _phoneNumber: String?
+    val _insulin: Double?
+    var _status: String?
+    ///////////////////////////////
     var date: Long?
     val device: String?
     val identifier: String?

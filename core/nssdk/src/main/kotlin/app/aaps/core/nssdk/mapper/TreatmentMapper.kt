@@ -9,10 +9,12 @@ import app.aaps.core.nssdk.localmodel.treatment.NSEffectiveProfileSwitch
 import app.aaps.core.nssdk.localmodel.treatment.NSExtendedBolus
 import app.aaps.core.nssdk.localmodel.treatment.NSOfflineEvent
 import app.aaps.core.nssdk.localmodel.treatment.NSProfileSwitch
+import app.aaps.core.nssdk.localmodel.treatment.NSRemoteBolus
 import app.aaps.core.nssdk.localmodel.treatment.NSTemporaryBasal
 import app.aaps.core.nssdk.localmodel.treatment.NSTemporaryTarget
 import app.aaps.core.nssdk.localmodel.treatment.NSTherapyEvent
 import app.aaps.core.nssdk.localmodel.treatment.NSTreatment
+import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
 import app.aaps.core.nssdk.remotemodel.RemoteTreatment
 import com.google.gson.Gson
 import org.json.JSONObject
@@ -33,6 +35,28 @@ fun String.toNSTreatment(): NSTreatment? =
 internal fun RemoteTreatment.toTreatment(): NSTreatment? {
     val treatmentTimestamp = timestamp()
     when {
+        _remoteEventType === RemoteEventType.MEAL_BOLUS && _insulin !== null && _insulin > 0 ->
+            return NSRemoteBolus(
+                date = treatmentTimestamp,
+                device = this.device,
+                identifier = this.identifier,
+                units = NsUnits.fromString(this.units),
+                srvModified = this.srvModified,
+                srvCreated = this.srvCreated,
+                utcOffset = this.utcOffset ?: 0,
+                subject = this.subject,
+                isReadOnly = this.isReadOnly == true,
+                isValid = this.isValid != false,
+                eventType = this.eventType ?: EventType.MEAL_BOLUS,
+                notes = this.notes,
+                pumpId = this.pumpId,
+                endId = this.endId,
+                pumpType = this.pumpType,
+                pumpSerial = this.pumpSerial,
+                _insulin = this._insulin,
+                type = NSRemoteBolus.BolusType.fromString(this.type),
+                isBasalInsulin = isBasalInsulin == true
+            )
         insulin != null && insulin > 0                                     ->
             return NSBolus(
                 date = treatmentTimestamp,

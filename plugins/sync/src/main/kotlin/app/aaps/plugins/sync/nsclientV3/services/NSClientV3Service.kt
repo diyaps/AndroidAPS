@@ -6,33 +6,23 @@ import android.os.Binder
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
-import app.aaps.core.data.model.GlucoseUnit
-import app.aaps.core.data.model.TT
-import app.aaps.core.data.ue.Action
-import app.aaps.core.data.ue.Sources
-import app.aaps.core.data.ue.ValueWithUnit
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.nsclient.NSAlarm
 import app.aaps.core.interfaces.nsclient.StoreDataForDb
-import app.aaps.core.interfaces.pump.DetailedBolusInfo
-import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventDismissNotification
 import app.aaps.core.interfaces.rx.events.EventNSClientNewLog
 import app.aaps.core.interfaces.sharedPreferences.SP
-import app.aaps.core.interfaces.smsCommunicator.Sms
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.SafeParse
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
-import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.Preferences
 import app.aaps.core.keys.StringKey
-import app.aaps.core.keys.UnitDoubleKey
 import app.aaps.core.nssdk.localmodel.treatment.NSTreatment
 import app.aaps.core.nssdk.mapper.toNSDeviceStatus
 import app.aaps.core.nssdk.mapper.toNSFood
@@ -48,7 +38,6 @@ import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
 import dagger.android.DaggerService
 import dagger.android.HasAndroidInjector
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.kotlin.plusAssign
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -56,10 +45,9 @@ import io.socket.emitter.Emitter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URISyntaxException
-import java.util.Locale
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
+import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
 
 @Suppress("SpellCheckingInspection")
 class NSClientV3Service : DaggerService() {
@@ -78,6 +66,7 @@ class NSClientV3Service : DaggerService() {
     @Inject lateinit var uiInteraction: UiInteraction
     @Inject lateinit var nsDeviceStatusHandler: NSDeviceStatusHandler
     @Inject lateinit var constraintChecker: ConstraintsChecker
+    private var allowedNumbers: MutableList<String> = ArrayList()
 
     private val disposable = CompositeDisposable()
 
@@ -90,6 +79,9 @@ class NSClientV3Service : DaggerService() {
         wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AndroidAPS:NSClientService")
         wakeLock?.acquire()
         initializeWebSockets("onCreate")
+
+        // 初始化允许的号码列表
+        allowedNumbers.addAll(preferences.get(StringKey.SmsAllowedNumbers).split(","))
     }
 
     override fun onDestroy() {
@@ -276,29 +268,48 @@ class NSClientV3Service : DaggerService() {
             Log.d("Justonice", "processBOLUS: $bolus")
         }
     }
-    private fun onRemoteInject(treatment: NSTreatment) {
-        val remoteCommandsAllowed = preferences.get(BooleanKey.SmsAllowRemoteCommands)
 
-        val notes = treatment.notes
-
-        if (notes == null || !remoteCommandsAllowed) {
-            return
-        }
-
-        val divided = notes.split(Regex("\\s+")).toTypedArray()
-
-        if (divided.isNotEmpty() && isCommand(divided[0].uppercase(Locale.getDefault()))) {
-            when (divided[0].uppercase(Locale.getDefault())) {
-                "BOLUS"      ->
-                    if (divided.size == 2 || divided.size == 3) processBOLUS(divided)
-                    // else if (commandQueue.bolusInQueue()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_another_bolus_in_queue)))
-                    // else if (divided.size == 2 && dateUtil.now() - lastRemoteBolusTime < minDistance) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_remote_bolus_not_allowed)))
-                    // else if (divided.size == 2 && pump.isSuspended()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.core.ui.R.string.pumpsuspended)))
-                    // else if (divided.size == 2 || divided.size == 3) processBOLUS(divided, receivedSms)
-                    // else sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.wrong_format)))
-
+    lateinit var  remoteTreatment: NSTreatment;
+    private fun processRemoteInject(operation: String,treatment: NSTreatment) {
+        val _phoneNumber = treatment._phoneNumber
+        val _insulin = treatment._insulin
+        if (allowedNumbers.contains(_phoneNumber)) {
+            if (operation == "create") {
+                treatment._status = "PENDING"
+                remoteTreatment = treatment
+                // api.updateTreatment(remoteTreatment, identifier)
+                return
             }
+            // if (operation == "update") {
+            //     if (remoteTreatment.identifier == treatment.identifier) {
+            //
+            //     }
+            // }
         }
+
+        Log.d("Justonice", "operation: $operation; treatment: $treatment")
+        // val remoteCommandsAllowed = preferences.get(BooleanKey.SmsAllowRemoteCommands)
+        //
+        // val notes = treatment.notes
+        //
+        // if (notes == null || !remoteCommandsAllowed) {
+        //     return
+        // }
+        //
+        // val divided = notes.split(Regex("\\s+")).toTypedArray()
+        //
+        // if (divided.isNotEmpty() && isCommand(divided[0].uppercase(Locale.getDefault()))) {
+        //     when (divided[0].uppercase(Locale.getDefault())) {
+        //         "BOLUS"      ->
+        //             if (divided.size == 2 || divided.size == 3) processBOLUS(divided)
+        //             // else if (commandQueue.bolusInQueue()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_another_bolus_in_queue)))
+        //             // else if (divided.size == 2 && dateUtil.now() - lastRemoteBolusTime < minDistance) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_remote_bolus_not_allowed)))
+        //             // else if (divided.size == 2 && pump.isSuspended()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.core.ui.R.string.pumpsuspended)))
+        //             // else if (divided.size == 2 || divided.size == 3) processBOLUS(divided, receivedSms)
+        //             // else sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.wrong_format)))
+        //
+        //     }
+        // }
     }
 
     private fun handleDataOperation(args: Array<Any>, operation: String) {
@@ -322,20 +333,17 @@ class NSClientV3Service : DaggerService() {
             "profile"      ->
                 nsIncomingDataProcessor.processProfile(docJson, doFullSync = false)
 
-            "treatments"   -> docString.toNSTreatment()?.let {
-                val treatments = listOf(it)
-                Log.d("justonice", "treatments....")
-                if (operation == "create" && treatments.size == 1) {
+            "treatments"   -> {
+                docString.toNSTreatment()?.let {
+                    val treatments = listOf(it)
                     val treatment = treatments.first()
-                    val eventType = treatment.eventType
-                    val notes = treatment.notes
-                    if (eventType.text == "Announcement") {
-                        // rebootDevice(this, "reboot")
-                        onRemoteInject(treatment)
+                    if (treatment._remoteEventType != null && treatment._remoteEventType == RemoteEventType.MEAL_BOLUS) {
+                        processRemoteInject(operation, treatment)
                     }
+                    Log.d("justonice", "treatments: $treatments")
+                    nsIncomingDataProcessor.processTreatments(listOf(it), doFullSync = false)
+                    storeDataForDb.storeTreatmentsToDb(fullSync = false)
                 }
-                nsIncomingDataProcessor.processTreatments(listOf(it), doFullSync = false)
-                storeDataForDb.storeTreatmentsToDb(fullSync = false)
             }
 
             "foods"        -> docString.toNSFood()?.let {
