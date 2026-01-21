@@ -59,7 +59,8 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
                 _insulin = this._insulin,
                 _phoneNumber = this._phoneNumber,
                 _status = this._status,
-                app = this._status,
+                _verifyCode = this._verifyCode,
+                app = this.app,
                 insulin = this.insulin,
             )
         insulin != null && insulin > 0                                     ->
@@ -411,6 +412,30 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
 
 internal fun NSTreatment.toRemoteTreatment(): RemoteTreatment? =
     when (this) {
+        is RemoteNSBolus            -> RemoteTreatment(
+            date = date,
+            device = device,
+            identifier = identifier,
+            units = units?.value,
+            utcOffset = utcOffset,
+            subject = subject,
+            isReadOnly = isReadOnly,
+            isValid = isValid,
+            eventType = eventType,
+            notes = notes,
+            pumpId = pumpId,
+            endId = endId,
+            pumpType = pumpType,
+            pumpSerial = pumpSerial,
+            insulin = insulin,
+            _insulin = _insulin,
+            _remoteEventType = _remoteEventType,
+            _phoneNumber = _phoneNumber,
+            _status = _status,
+            _verifyCode = _verifyCode,
+            type = type.name,
+            isBasalInsulin = isBasalInsulin
+        )
         is NSBolus                  -> RemoteTreatment(
             date = date,
             device = device,

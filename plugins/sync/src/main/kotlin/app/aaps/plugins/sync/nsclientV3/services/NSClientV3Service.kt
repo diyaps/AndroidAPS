@@ -49,6 +49,7 @@ import javax.inject.Inject
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
 import app.aaps.core.nssdk.localmodel.treatment.RemoteNSBolus
+import app.aaps.plugins.sync.nsclientV3.services.NSHelper.NSHelper
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -86,7 +87,14 @@ class NSClientV3Service : DaggerService() {
         initializeWebSockets("onCreate")
 
         // 初始化允许的号码列表
-        allowedNumbers.addAll(preferences.get(StringKey.SmsAllowedNumbers).split(","))
+        val settings = preferences.get(StringKey.SmsAllowedNumbers)
+        allowedNumbers.clear()
+        val substrings = settings.split(";").toTypedArray()
+        for (number in substrings) {
+            val cleaned = number.replace("\\s+".toRegex(), "")
+            allowedNumbers.add(cleaned)
+            aapsLogger.debug(LTag.SMS, "Found allowed number: $cleaned")
+        }
     }
 
     override fun onDestroy() {
@@ -235,7 +243,7 @@ class NSClientV3Service : DaggerService() {
         rxBus.send(EventNSClientNewLog("◄ WS", "disconnect alarm event"))
     }
 
-    private val onDataCreate = Emitter.Listener {args ->
+    private val onDataCreate = Emitter.Listener { args ->
 
         handleDataOperation(args, "create")
     }
@@ -274,14 +282,14 @@ class NSClientV3Service : DaggerService() {
         }
     }
 
-    lateinit var  remoteTreatment: NSTreatment;
+    lateinit var  remoteTreatment: RemoteNSBolus;
     @OptIn(DelicateCoroutinesApi::class)
     private fun processRemoteInject(operation: String, treatment: RemoteNSBolus) {
         val _phoneNumber = treatment._phoneNumber
         val _insulin = treatment._insulin
         if (allowedNumbers.contains(_phoneNumber)) {
             if (operation == "create") {
-                treatment._status = "PENDING"
+                treatment._status = NSHelper.RemoteTreatmentStatus.WAITING_FOR_VERIFY.toString()
                 remoteTreatment = treatment
                 GlobalScope.launch(Dispatchers.IO) {
                     try {
@@ -289,48 +297,23 @@ class NSClientV3Service : DaggerService() {
                         // 处理结果
                         if (result?.response == 200) {
                             // 更新成功
-                            rxBus.send(EventNSClientNewLog("◄ UPDATE", "Treatment updated successfully"))
+                            Log.d("Justonice", "Treatment updated successfully")
                         } else {
                             // 更新失败
-                            rxBus.send(EventNSClientNewLog("◄ ERROR", "Failed to update treatment: ${result?.errorResponse}"))
+                            Log.d("Justonice", "Failed to update treatment: ${result?.errorResponse}")
                         }
                     } catch (e: Exception) {
-                        aapsLogger.error(LTag.NSCLIENT, "Error updating treatment", e)
-                        rxBus.send(EventNSClientNewLog("◄ ERROR", "Exception updating treatment: ${e.message}"))
+                        Log.d("Justonice", "Exception updating treatment: ${e.message}")
                     }
                 }
                 return
             }
-            // if (operation == "update") {
-            //     if (remoteTreatment.identifier == treatment.identifier) {
-            //
-            //     }
-            // }
-        }
+            if (operation == "update") {
 
-        Log.d("Justonice", "operation: $operation; treatment: $treatment")
-        // val remoteCommandsAllowed = preferences.get(BooleanKey.SmsAllowRemoteCommands)
-        //
-        // val notes = treatment.notes
-        //
-        // if (notes == null || !remoteCommandsAllowed) {
-        //     return
-        // }
-        //
-        // val divided = notes.split(Regex("\\s+")).toTypedArray()
-        //
-        // if (divided.isNotEmpty() && isCommand(divided[0].uppercase(Locale.getDefault()))) {
-        //     when (divided[0].uppercase(Locale.getDefault())) {
-        //         "BOLUS"      ->
-        //             if (divided.size == 2 || divided.size == 3) processBOLUS(divided)
-        //             // else if (commandQueue.bolusInQueue()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_another_bolus_in_queue)))
-        //             // else if (divided.size == 2 && dateUtil.now() - lastRemoteBolusTime < minDistance) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.smscommunicator_remote_bolus_not_allowed)))
-        //             // else if (divided.size == 2 && pump.isSuspended()) sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.core.ui.R.string.pumpsuspended)))
-        //             // else if (divided.size == 2 || divided.size == 3) processBOLUS(divided, receivedSms)
-        //             // else sendSMS(Sms(receivedSms.phoneNumber, rh.gs(app.aaps.plugins.main.R.string.wrong_format)))
-        //
-        //     }
-        // }
+                return
+            }
+
+        }
     }
 
     @SuppressLint("SuspiciousIndentation")

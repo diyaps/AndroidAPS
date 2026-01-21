@@ -7,6 +7,7 @@ data class RemoteNSBolus(
     val _phoneNumber: String?,
     val _insulin: Double?,
     var _status: String?,
+    var _verifyCode: String?,
     override var date: Long?,
     override val device: String? = null,
     override val identifier: String?,
