@@ -4,9 +4,9 @@ class NSHelper {
     enum class RemoteTreatmentStatus {
         CREATING,
         WAITING_FOR_VERIFY,
+        VERIFYING,
         VERIFY_SUCCESS,
         VERIFY_FAILED,
-        VERIFYING,
         EXECUTING,
         EXECUTE_SUCCESS,
         EXECUTE_FAILED,
