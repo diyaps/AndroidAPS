@@ -265,7 +265,7 @@ class SmsCommunicatorPlugin @Inject constructor(
             aapsLogger.debug(LTag.SMS, "Ignoring SMS. Plugin disabled.")
             return
         }
-        Log.d("justonice", "phoneNumber: ${receivedSms.phoneNumber};" +
+        Log.d("Justonice", "phoneNumber: ${receivedSms.phoneNumber};" +
         "allowedNumbers: $allowedNumbers;")
         if (!isAllowedNumber(receivedSms.phoneNumber)) {
             aapsLogger.debug(LTag.SMS, "Ignoring SMS from: " + receivedSms.phoneNumber + ". Sender not allowed")
@@ -956,14 +956,14 @@ class SmsCommunicatorPlugin @Inject constructor(
             else
                 rh.gs(R.string.smscommunicator_bolus_reply_with_code, bolus, passCode)
             receivedSms.processed = true
-            Log.d("justonice", "processBOLUS: ${divided.contentToString()}")
-            Log.d("justonice", "receivedSms: ${receivedSms.text}")
-            Log.d("justonice", "receivedSms: $passCode")
+            Log.d("Justonice", "processBOLUS: ${divided.contentToString()}")
+            Log.d("Justonice", "receivedSms: ${receivedSms.text}")
+            Log.d("Justonice", "receivedSms: $passCode")
             messageToConfirm = AuthRequest(injector, receivedSms, reply, passCode, object : SmsAction(pumpCommand = true, bolus) {
                 override fun run() {
                     val detailedBolusInfo = DetailedBolusInfo()
                     detailedBolusInfo.insulin = aDouble()
-                    Log.d("justonice", "run: $detailedBolusInfo")
+                    Log.d("Justonice", "run: $detailedBolusInfo")
                     commandQueue.bolus(detailedBolusInfo, object : Callback() {
                         override fun run() {
                             val resultSuccess = result.success

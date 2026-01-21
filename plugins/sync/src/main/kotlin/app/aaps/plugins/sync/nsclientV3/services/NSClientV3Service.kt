@@ -6,6 +6,11 @@ import android.os.Binder
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.TT
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
+import app.aaps.core.data.ue.ValueWithUnit
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
@@ -47,6 +52,12 @@ import org.json.JSONObject
 import java.net.URISyntaxException
 import javax.inject.Inject
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
+import app.aaps.core.interfaces.pump.DetailedBolusInfo
+import app.aaps.core.interfaces.queue.Callback
+import app.aaps.core.interfaces.queue.CommandQueue
+import app.aaps.core.interfaces.smsCommunicator.Sms
+import app.aaps.core.keys.IntKey
+import app.aaps.core.keys.UnitDoubleKey
 import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
 import app.aaps.core.nssdk.localmodel.treatment.RemoteNSBolus
 import app.aaps.plugins.sync.nsclientV3.services.NSHelper.NSHelper
@@ -54,6 +65,10 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import app.aaps.plugins.main.general.smsCommunicator.otp.OneTimePassword
+import app.aaps.plugins.main.general.smsCommunicator.otp.OneTimePasswordValidationResult
+import io.reactivex.rxjava3.kotlin.plusAssign
+import java.util.concurrent.TimeUnit
 
 @Suppress("SpellCheckingInspection")
 class NSClientV3Service : DaggerService() {
@@ -72,6 +87,9 @@ class NSClientV3Service : DaggerService() {
     @Inject lateinit var uiInteraction: UiInteraction
     @Inject lateinit var nsDeviceStatusHandler: NSDeviceStatusHandler
     @Inject lateinit var constraintChecker: ConstraintsChecker
+    @Inject lateinit var commandQueue: CommandQueue
+
+    @Inject lateinit var otp: OneTimePassword
     private var allowedNumbers: MutableList<String> = ArrayList()
 
     private val disposable = CompositeDisposable()
@@ -286,7 +304,6 @@ class NSClientV3Service : DaggerService() {
     @OptIn(DelicateCoroutinesApi::class)
     private fun processRemoteInject(operation: String, treatment: RemoteNSBolus) {
         val _phoneNumber = treatment._phoneNumber
-        val _insulin = treatment._insulin
         if (allowedNumbers.contains(_phoneNumber)) {
             if (operation == "create") {
                 treatment._status = NSHelper.RemoteTreatmentStatus.WAITING_FOR_VERIFY.toString()
@@ -309,7 +326,25 @@ class NSClientV3Service : DaggerService() {
                 return
             }
             if (operation == "update") {
+                // 校验状态
+                if (treatment._status == NSHelper.RemoteTreatmentStatus.VERIFYING.toString() && treatment._verifyCode != null) {
+                    // 校验验证码
+                    val verifyResult = otp.checkOTP(treatment._verifyCode!!) == OneTimePasswordValidationResult.OK
+                    if (verifyResult) {
+                        // 验证通过开始输注大剂量
+                        val _insulin = treatment._insulin
+                        val detailedBolusInfo = DetailedBolusInfo()
+                        detailedBolusInfo.insulin = _insulin!!
+                        commandQueue.bolus(detailedBolusInfo, object : Callback() {
+                            override fun run() {
+                                val resultSuccess = result.success
+                                Log.d("Justonice", "resultSuccess: $resultSuccess")
+                            }
+                        })
 
+                    }
+
+                }
                 return
             }
 
@@ -318,7 +353,7 @@ class NSClientV3Service : DaggerService() {
 
     @SuppressLint("SuspiciousIndentation")
     private fun handleDataOperation(args: Array<Any>, operation: String) {
-        Log.d("justonice", "handleDataOperation....")
+        Log.d("Justonice", "handleDataOperation....")
         val response = args[0] as JSONObject
         aapsLogger.debug(LTag.NSCLIENT, "onData${operation.replaceFirstChar { it.uppercase() }}: $response")
         val collection = response.getString("colName")
@@ -345,7 +380,7 @@ class NSClientV3Service : DaggerService() {
                         if (treatment._remoteEventType != null && treatment._remoteEventType == RemoteEventType.MEAL_BOLUS) {
                         processRemoteInject(operation, treatment)
                     }
-                    Log.d("justonice", "treatments: $treatments")
+                    Log.d("Justonice", "treatments: $treatments")
                     nsIncomingDataProcessor.processTreatments(listOf(it), doFullSync = false)
                     storeDataForDb.storeTreatmentsToDb(fullSync = false)
                 }

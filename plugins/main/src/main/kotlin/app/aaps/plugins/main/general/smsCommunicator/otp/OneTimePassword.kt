@@ -88,7 +88,6 @@ class OneTimePassword @Inject constructor(
         if (normalisedOtp.length != (6 + pin.length)) {
             return OneTimePasswordValidationResult.ERROR_WRONG_LENGTH
         }
-        Log.d("justonice", "${normalisedOtp.substring(6)}; pin: $pin")
         if (normalisedOtp.substring(6) != pin) {
             return OneTimePasswordValidationResult.ERROR_WRONG_PIN
         }
@@ -100,12 +99,6 @@ class OneTimePassword @Inject constructor(
             acceptableTokens.add(generateOneTimePassword(counter - i - 1))
         }
         val candidateOtp = normalisedOtp.substring(0, 6)
-
-        Log.d("justonice", "candidateOtp: $candidateOtp;" +
-            "acceptableTokens[0]: ${acceptableTokens[0]};" +
-              "${normalisedOtp.substring(6)};"+
-              "pin: $pin"
-        )
 
         if (acceptableTokens.any { candidate -> candidateOtp == candidate }) {
 

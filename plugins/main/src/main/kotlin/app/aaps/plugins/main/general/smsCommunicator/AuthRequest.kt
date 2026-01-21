@@ -45,7 +45,6 @@ class AuthRequest(
         otp.checkOTP(toValidate) == OneTimePasswordValidationResult.OK
 
     fun action(codeReceived: String) {
-        Log.d("justonice", codeReceived)
         if (processed) {
             aapsLogger.debug(LTag.SMS, "Already processed")
             return

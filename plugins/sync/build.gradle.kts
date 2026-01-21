@@ -21,7 +21,7 @@ dependencies {
     implementation(project(":core:utils"))
     implementation(project(":core:validators"))
     implementation(project(":shared:impl"))
-
+    implementation(project(":plugins:main"))
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.work.testing)
