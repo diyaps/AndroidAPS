@@ -2,7 +2,11 @@ package app.aaps.core.nssdk.localmodel.treatment
 
 import app.aaps.core.nssdk.localmodel.entry.NsUnits
 
-data class NSBolus(
+data class RemoteNSBolus(
+    val _remoteEventType: RemoteEventType?,
+    val _phoneNumber: String?,
+    val _insulin: Double?,
+    var _status: String?,
     override var date: Long?,
     override val device: String? = null,
     override val identifier: String?,
@@ -20,7 +24,7 @@ data class NSBolus(
     override val pumpType: String?,
     override val pumpSerial: String?,
     override var app: String? = null,
-    val insulin: Double,
+    val insulin: Double?,
     val type: BolusType,
     val isBasalInsulin: Boolean,
 ) : NSTreatment {
@@ -32,7 +36,7 @@ data class NSBolus(
 
         companion object {
 
-            fun fromString(name: String?) = BolusType.entries.firstOrNull { it.name == name } ?: NORMAL
+            fun fromString(name: String?) = entries.firstOrNull { it.name == name } ?: NORMAL
         }
     }
 }

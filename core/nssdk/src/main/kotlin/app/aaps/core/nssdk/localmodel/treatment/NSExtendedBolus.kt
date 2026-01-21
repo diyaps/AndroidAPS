@@ -24,8 +24,4 @@ data class NSExtendedBolus(
     val enteredinsulin: Double,
     val isEmulatingTempBasal: Boolean?,
     val rate: Double?,
-    override val _remoteEventType: RemoteEventType?,
-    override val _phoneNumber: String?,
-    override val _insulin: Double?,
-    override var _status: String?
 ) : NSTreatment

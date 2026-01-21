@@ -14,6 +14,7 @@ import app.aaps.core.nssdk.localmodel.treatment.NSTemporaryTarget
 import app.aaps.core.nssdk.localmodel.treatment.NSTherapyEvent
 import app.aaps.core.nssdk.localmodel.treatment.NSTreatment
 import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
+import app.aaps.core.nssdk.localmodel.treatment.RemoteNSBolus
 import app.aaps.core.nssdk.remotemodel.RemoteTreatment
 import com.google.gson.Gson
 import org.json.JSONObject
@@ -35,7 +36,7 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
     val treatmentTimestamp = timestamp()
     when {
         _remoteEventType === RemoteEventType.MEAL_BOLUS && _insulin !== null && _insulin > 0 ->
-            return NSBolus(
+            return RemoteNSBolus(
                 date = treatmentTimestamp,
                 device = this.device,
                 identifier = this.identifier,
@@ -52,9 +53,14 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
                 endId = this.endId,
                 pumpType = this.pumpType,
                 pumpSerial = this.pumpSerial,
-                _insulin = this._insulin,
-                type = NSBolus.BolusType.fromString(this.type),
+                type = RemoteNSBolus.BolusType.fromString(this.type),
                 isBasalInsulin = isBasalInsulin == true,
+                _remoteEventType = this._remoteEventType,
+                _insulin = this._insulin,
+                _phoneNumber = this._phoneNumber,
+                _status = this._status,
+                app = this._status,
+                insulin = this.insulin,
             )
         insulin != null && insulin > 0                                     ->
             return NSBolus(
@@ -77,10 +83,6 @@ internal fun RemoteTreatment.toTreatment(): NSTreatment? {
                 insulin = this.insulin,
                 type = NSBolus.BolusType.fromString(this.type),
                 isBasalInsulin = isBasalInsulin == true,
-                _remoteEventType = this._remoteEventType,
-                _phoneNumber = this._phoneNumber,
-                _insulin = this._insulin,
-                _status = this._status,
                 app = this.app
             )
 

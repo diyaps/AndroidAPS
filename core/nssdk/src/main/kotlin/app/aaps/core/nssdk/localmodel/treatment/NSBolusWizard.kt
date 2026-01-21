@@ -22,8 +22,4 @@ data class NSBolusWizard(
     override var app: String? = null,
     val bolusCalculatorResult: String?,
     val glucose: Double?,
-    override val _remoteEventType: RemoteEventType?,
-    override val _phoneNumber: String?,
-    override val _insulin: Double?,
-    override var _status: String?
 ) : NSTreatment

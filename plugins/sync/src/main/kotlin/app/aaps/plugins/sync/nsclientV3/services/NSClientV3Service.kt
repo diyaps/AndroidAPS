@@ -48,6 +48,7 @@ import java.net.URISyntaxException
 import javax.inject.Inject
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.nssdk.localmodel.treatment.RemoteEventType
+import app.aaps.core.nssdk.localmodel.treatment.RemoteNSBolus
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -275,7 +276,7 @@ class NSClientV3Service : DaggerService() {
 
     lateinit var  remoteTreatment: NSTreatment;
     @OptIn(DelicateCoroutinesApi::class)
-    private fun processRemoteInject(operation: String, treatment: NSTreatment) {
+    private fun processRemoteInject(operation: String, treatment: RemoteNSBolus) {
         val _phoneNumber = treatment._phoneNumber
         val _insulin = treatment._insulin
         if (allowedNumbers.contains(_phoneNumber)) {
@@ -332,6 +333,7 @@ class NSClientV3Service : DaggerService() {
         // }
     }
 
+    @SuppressLint("SuspiciousIndentation")
     private fun handleDataOperation(args: Array<Any>, operation: String) {
         Log.d("justonice", "handleDataOperation....")
         val response = args[0] as JSONObject
@@ -356,8 +358,8 @@ class NSClientV3Service : DaggerService() {
             "treatments"   -> {
                 docString.toNSTreatment()?.let {
                     val treatments = listOf(it)
-                    val treatment = treatments.first()
-                    if (treatment._remoteEventType != null && treatment._remoteEventType == RemoteEventType.MEAL_BOLUS) {
+                    val treatment = treatments.first() as RemoteNSBolus
+                        if (treatment._remoteEventType != null && treatment._remoteEventType == RemoteEventType.MEAL_BOLUS) {
                         processRemoteInject(operation, treatment)
                     }
                     Log.d("justonice", "treatments: $treatments")
