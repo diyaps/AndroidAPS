@@ -44,6 +44,7 @@ import app.aaps.plugins.source.PatchedSiAppPlugin
 import app.aaps.plugins.source.PatchedSinoAppPlugin
 import app.aaps.plugins.source.PoctechPlugin
 import app.aaps.plugins.source.RandomBgPlugin
+import app.aaps.plugins.source.SibionicsPlugin
 import app.aaps.plugins.source.SyaiPlugin
 import app.aaps.plugins.source.TomatoPlugin
 import app.aaps.plugins.source.XdripSourcePlugin
@@ -450,6 +451,12 @@ abstract class PluginsListModule {
     @IntoMap
     @IntKey(476)
     abstract fun bindPatchedSinoAppPlugin(plugin: PatchedSinoAppPlugin): PluginBase
+
+    @Binds
+    @AllConfigs
+    @IntoMap
+    @IntKey(477)
+    abstract fun bindSibionicsPlugin(plugin: SibionicsPlugin): PluginBase
 
     @Binds
     @AllConfigs

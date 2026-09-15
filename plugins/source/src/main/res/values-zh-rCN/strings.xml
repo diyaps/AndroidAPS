@@ -24,4 +24,7 @@
     <!-- Patched Sino App -->
     <string name="patched_sino_app">爱看补丁版</string>
     <string name="description_source_patched_sino_app">从爱看补丁版App接收血糖值。</string>
+    <!-- SIB App -->
+    <string name="sibionics">硅基（Sibionics）</string>
+    <string name="description_source_sibionics">从硅基（Sibionics）应用接收血糖值</string>
 </resources>

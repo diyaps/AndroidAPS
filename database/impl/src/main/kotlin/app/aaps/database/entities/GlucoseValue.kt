@@ -100,6 +100,7 @@ data class GlucoseValue(
         OTTAI,
         SIBIONIC_GS1_NATIVE,
         SIBIONIC,
+        SIBIONICS,
         SINO,
         SYAI_TAG,
         IOB_PREDICTION,
