@@ -20,6 +20,7 @@ import app.aaps.plugins.source.DexcomPlugin
 import app.aaps.plugins.source.GlimpPlugin
 import app.aaps.plugins.source.MM640gPlugin
 import app.aaps.plugins.source.PatchedSiAppPlugin
+import app.aaps.plugins.source.SibionicsPlugin
 import app.aaps.plugins.source.PatchedSinoAppPlugin
 import app.aaps.plugins.source.PoctechPlugin
 import app.aaps.plugins.source.SyaiPlugin
@@ -90,6 +91,13 @@ open class DataReceiver : DaggerBroadcastReceiver() {
                         it.copyString("collection", bundle)
                         it.copyString("data", bundle)
                     }.build()).build()
+
+            Intents.SIB_APP          ->
+                OneTimeWorkRequest.Builder(SibionicsPlugin.SibionicsWorker::class.java)
+                    .setInputData(Data.Builder().also {
+                    it.copyString("collection", bundle)
+                    it.copyString("data", bundle)
+                 }.build()).build()
 
             Intents.SINO_APP                          ->
                 OneTimeWorkRequest.Builder(PatchedSinoAppPlugin.PatchedSinoAppWorker::class.java)

@@ -185,7 +185,7 @@ class EquilManager @Inject constructor(
             updateHistory(equilHistoryRecord, command.resolvedResult)
             loadEquilHistory()
             result.success = command.cmdSuccess
-            result.enacted(true)
+            result.enacted(command.cmdSuccess)
         } catch (ex: Exception) {
             ex.printStackTrace()
             result.success(false).enacted(false).comment(ex.message ?: "Exception")
@@ -263,6 +263,7 @@ class EquilManager @Inject constructor(
                 }
                 // constraint percent.
                 percent = min(percent, 100.0f)
+                rxBus.send(EventOverviewBolusProgress(rh, percent = 100, id = detailedBolusInfo.id))
                 result.comment = rh.gs(app.aaps.core.ui.R.string.virtualpump_resultok)
             } else {
                 result.success = false
@@ -325,6 +326,7 @@ class EquilManager @Inject constructor(
                 (historyGet as Object).wait(historyGet.timeOut.toLong())
             }
             aapsLogger.debug(LTag.PUMPCOMM, "loadHistory end: ")
+            if (!historyGet.cmdSuccess) return -1
             return historyGet.currentIndex
         } catch (ex: Exception) {
             ex.printStackTrace()
@@ -525,6 +527,11 @@ class EquilManager @Inject constructor(
     }
 
     fun getSerialNumber(): String = equilState?.serialNumber ?: "UNKNOWN"
+
+    fun getResistanceThreshold(): Int {
+        val firstChar = getSerialNumber().substringAfterLast(" - ").firstOrNull()?.uppercaseChar()
+        return if (firstChar in OLD_PUMP_SERIAL_PREFIXES) 500 else 220
+    }
 
     fun setBolusRecord(bolusRecord: EquilBolusRecord?) {
         equilState?.bolusRecord = bolusRecord
@@ -774,6 +781,8 @@ class EquilManager @Inject constructor(
     }
 
     companion object {
+
+        val OLD_PUMP_SERIAL_PREFIXES = setOf('0', '1', '3', 'A', 'D')
 
         private fun createGson(): Gson {
             val gsonBuilder = GsonBuilder()

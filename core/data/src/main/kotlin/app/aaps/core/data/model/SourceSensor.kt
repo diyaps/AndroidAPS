@@ -29,6 +29,7 @@ enum class SourceSensor(val text: String) {
     OTTAI("Ottai"),
     SIBIONIC_GS1_NATIVE("GS1 Native"),
     SIBIONIC("SI App"),
+    SIBIONICS("Sibionics"),
     SINO("Sino App"),
     EVERSENSE("Eversense"),
     AIDEX("GlucoRx Aidex"),

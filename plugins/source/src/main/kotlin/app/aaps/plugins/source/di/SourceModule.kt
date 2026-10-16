@@ -11,6 +11,7 @@ import app.aaps.plugins.source.NSClientSourcePlugin
 import app.aaps.plugins.source.PatchedSiAppPlugin
 import app.aaps.plugins.source.PatchedSinoAppPlugin
 import app.aaps.plugins.source.PoctechPlugin
+import app.aaps.plugins.source.SibionicsPlugin
 import app.aaps.plugins.source.SyaiPlugin
 import app.aaps.plugins.source.TomatoPlugin
 import app.aaps.plugins.source.XdripSourcePlugin
@@ -39,6 +40,7 @@ abstract class SourceModule {
     @ContributesAndroidInjector abstract fun contributesSyaiWorker(): SyaiPlugin.SyaiWorker
     @ContributesAndroidInjector abstract fun contributesSiAppWorker(): PatchedSiAppPlugin.PatchedSiAppWorker
     @ContributesAndroidInjector abstract fun contributesSinoAppWorker(): PatchedSinoAppPlugin.PatchedSinoAppWorker
+    @ContributesAndroidInjector abstract fun contributesSibionicsWorker(): SibionicsPlugin.SibionicsWorker
 
     @ContributesAndroidInjector abstract fun contributesRequestDexcomPermissionActivity(): RequestDexcomPermissionActivity
 
