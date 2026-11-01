@@ -27,6 +27,7 @@ val showTestStandardOut = !providers.environmentVariable("CI").isPresent
 
 tasks.withType<Test> {
     testLogging {
+        testLogging.showStandardStreams = true
         // set options for log level LIFECYCLE
         events = if (showTestStandardOut)
             setOf(TestLogEvent.FAILED, TestLogEvent.SKIPPED, TestLogEvent.STANDARD_OUT)

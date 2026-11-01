@@ -54,9 +54,6 @@ interface Intents {
         // Patched SI App -> AAPS
         const val SI_APP = "cn.diyaps.sharing.SI_APP"
 
-        // Sibionics App -> AAPS. Same vendor and same payload as SI_APP, only the action differs
-        const val SIB_APP = "com.diyaps.sharing.SIBIO_APP"
-
         // Patched Sino App -> AAPS
         const val SINO_APP = "cn.diyaps.sharing.SINO_APP"
 
@@ -84,5 +81,7 @@ interface Intents {
         // Instara App -> AAPS
         // NOTE: The action name for INSTARA_APP is still called "Teljane_APP"
         const val INSTARA_APP = "info.nightscout.androidaps.action.Teljane_APP"
+        // Patched Sib App -> AAPS
+        const val SIB_APP = "com.diyaps.sharing.SIBIO_APP"
     }
 }

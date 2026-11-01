@@ -29,6 +29,7 @@ enum class SourceSensor(val text: String, val aliases: Set<String> = emptySet())
     MM_UNKNOWN("Medtronic", setOf("CareLink Follow")),
     SIBIONIC_UNKNOWN("SI App"),
     SIBIONIC_GS1("GS1Sb"),
+    SIBIONIC_GS1_NATIVE("GS1 Native"),
     SIBIONIC_GS3("GS3"),
     ACCU_CHEK("AccuChek"),
     CARESENS_AIR("CareSenseAir"),

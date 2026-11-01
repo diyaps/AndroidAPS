@@ -180,4 +180,3 @@ fun Sources.toDb(): UserEntry.Sources =
         Sources.Carelevo            -> UserEntry.Sources.Carelevo
         Sources.Unknown             -> UserEntry.Sources.Unknown
     }
-

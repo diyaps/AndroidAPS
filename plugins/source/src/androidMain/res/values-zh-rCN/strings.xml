@@ -22,14 +22,14 @@
     <string name="random_bg">随机血糖</string>
     <string name="description_source_random_bg">生成随机血糖数据（仅限demo演示模式）</string>
     <!-- Patched Syai Tag App -->
-    <string name="syai_tag_app">Syai/欧态</string>
-    <string name="description_source_patched_syai_tag_app">从 Syai/欧态 App 接收血糖数据。</string>
+    <string name="syai_tag_app">欧态-小欧生态</string>
+    <string name="description_source_patched_syai_tag_app">从欧态 App 接收血糖数据。</string>
     <!-- Patched SI App -->
-    <string name="patched_si_app">SI App</string>
-    <string name="description_source_patched_si_app">从 Patched Sibionic SI 应用或从 Sibionics 应用接收葡萄糖数据。</string>
+    <string name="patched_si_app">硅基应用</string>
+    <string name="description_source_patched_si_app">从X基共享版应用或从硅基动感/硅基动感健康官方应用接收葡萄糖数据。</string>
     <!-- Patched Sino App -->
-    <string name="patched_sino_app">Sino App</string>
-    <string name="description_source_patched_sino_app">从补丁 Sino App 应用接收血糖数据。</string>
+    <string name="patched_sino_app">爱看健康补丁应用</string>
+    <string name="description_source_patched_sino_app">从爱看健康补丁应用接收血糖数据。</string>
     <!-- Instara App -->
     <string name="instara_app">Instara</string>
     <string name="description_source_instara_app">从 Instara 应用中接收血糖值。</string>

@@ -685,6 +685,7 @@ class MainViewModel(
 
     fun buildAboutDialogData(appName: String): AboutDialogData {
         var message = "Build: ${config.BUILD_VERSION}\n"
+        message += "${rh.gs(CoreUiStrings.chinese_localization)}\n"
         message += "Flavor: ${config.FLAVOR}${config.BUILD_TYPE}\n"
         // Only where the build declares one. All three shells do - Android's `ConfigImpl` says
         // "Android" - so in practice the line is always there; the guard is for a Config that

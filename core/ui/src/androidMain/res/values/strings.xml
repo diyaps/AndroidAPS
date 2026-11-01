@@ -1057,6 +1057,8 @@
     <string name="cta_dont_kill_my_app_info">Don\'t kill my app?</string>
     <string name="fabric_upload_disabled">Crash logs upload disabled!</string>
     <string name="about_link_urls">\n\nDocumentation:\nhttps://wiki.aaps.app\n\nFacebook:\nhttps://www.facebook.com/groups/AndroidAPSUsers</string>
+    <string name="chinese_localization">WeChat official Account/Douyin: 一型码农Lex</string>
+    <string name="chinese_version">码农国内优化版</string>
 
     <plurals name="days">
         <item quantity="one">%1$d day</item>
